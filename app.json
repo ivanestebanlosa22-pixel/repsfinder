@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "RepsFinder",
+    "slug": "repsfinder-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router"
+    ],
+    "updates": {
+      "enabled": false
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.repsfinder.app"
+    },
+    "android": {
+      "package": "com.repsfinder.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "permissions": ["INTERNET"]
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ffedc74b-a25a-4c0d-a764-f75fcec4aca0"
+      }
+    }
+  }
+}

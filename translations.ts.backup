@@ -1,0 +1,94 @@
+// Sistema de traducciones completo para RepsFinder
+export const translations = {
+  es: {
+    // COMÚN
+    loading: 'Cargando...',
+    
+    // INDEX
+    appName: 'RepsFinder',
+    tagline: 'Compra Seguro. Compra Inteligente.',
+    featuredProducts: 'Productos Destacados',
+    seeAll: 'Ver Todos',
+    buyNow: 'COMPRAR',
+    
+    // VALIDATE
+    products: 'productos',
+    verifiedSales: 'ventas verificadas',
+    selectAgent: 'Selecciona tu agente',
+    
+    // AGENTS
+    agentsTitle: 'Agentes de Compra',
+    agentsSubtitle: 'Compara y elige el mejor',
+    commission: 'Comisión',
+    shipping: 'Envío',
+    rating: 'Valoración',
+    register: 'REGISTRARSE',
+    
+    // COMMUNITY
+    communityTitle: 'Hauls de la Comunidad',
+    videos: 'videos',
+    
+    // LEARN
+    learnTitle: 'Aprende a Comprar',
+    guides: 'Guías y Tutoriales',
+    
+    // SETTINGS
+    preferences: 'Preferencias',
+    language: 'Idioma',
+    currency: 'Moneda',
+    spanish: 'Español',
+    english: 'English',
+    savePreferences: 'Guardar Preferencias',
+  },
+  en: {
+    // COMMON
+    loading: 'Loading...',
+    
+    // INDEX
+    appName: 'RepsFinder',
+    tagline: 'Buy Safe. Buy Smart.',
+    featuredProducts: 'Featured Products',
+    seeAll: 'See All',
+    buyNow: 'BUY NOW',
+    
+    // VALIDATE
+    products: 'products',
+    verifiedSales: 'verified sales',
+    selectAgent: 'Select your agent',
+    
+    // AGENTS
+    agentsTitle: 'Shopping Agents',
+    agentsSubtitle: 'Compare and choose the best',
+    commission: 'Commission',
+    shipping: 'Shipping',
+    rating: 'Rating',
+    register: 'REGISTER',
+    
+    // COMMUNITY
+    communityTitle: 'Community Hauls',
+    videos: 'videos',
+    
+    // LEARN
+    learnTitle: 'Learn to Shop',
+    guides: 'Guides and Tutorials',
+    
+    // SETTINGS
+    preferences: 'Preferences',
+    language: 'Language',
+    currency: 'Currency',
+    spanish: 'Español',
+    english: 'English',
+    savePreferences: 'Save Preferences',
+  },
+};
+
+// Conversiones de moneda (actualizadas regularmente)
+export const CURRENCY_RATES = {
+  USD: 1,
+  EUR: 0.92,
+};
+
+export const CURRENCY_SYMBOLS = {
+  USD: '$',
+  EUR: '€',
+};
