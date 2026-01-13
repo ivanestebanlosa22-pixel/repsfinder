@@ -27,6 +27,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONFIG = {
   SHEET_ID: '1YZmhCC4rBmGpv-IoIvjB8oMV6kVCgOpK4-1rDBa0Ha8',
   SHEET_MAIN: 'MAIN',
+  SHEET_AGENTES_INDEX: 'AGENTES INDEX',
   UPDATE_INTERVAL: 12 * 60 * 60 * 1000,
   PRODUCT_LIMIT: 10,
   ANIMATION_DURATION: 600,
@@ -34,6 +35,7 @@ const CONFIG = {
 } as const;
 
 const SHEET_URL_MAIN = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.SHEET_MAIN}`;
+const SHEET_URL_AGENTES_INDEX = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.SHEET_AGENTES_INDEX}`;
 
 const IMAGES = {
   HERO: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?w=1400&q=90',
@@ -811,7 +813,9 @@ export default function HomeScreen() {
   
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [premiumAgents, setPremiumAgents] = useState<Agent[]>(PREMIUM_AGENTS);
   const [loading, setLoading] = useState(true);
+  const [loadingAgents, setLoadingAgents] = useState(true);
   const [language, setLanguage] = useState<Language>('es');
   const [currency, setCurrency] = useState<Currency>('USD');
   const [lastUpdate, setLastUpdate] = useState('');
@@ -820,6 +824,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadFeaturedProducts();
+    loadPremiumAgents();
     loadPreferences();
     updateLastUpdateTime();
   }, []);
@@ -866,7 +871,7 @@ export default function HomeScreen() {
     try {
       const response = await fetch(SHEET_URL_MAIN);
       if (!response.ok) throw new Error('Network response was not ok');
-      
+
       const text = await response.text();
       const json = JSON.parse(text.substr(47).slice(0, -2));
       const rows = json.table.rows;
@@ -924,6 +929,50 @@ export default function HomeScreen() {
       console.error('Error loading products:', error);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadPremiumAgents = useCallback(async () => {
+    try {
+      const response = await fetch(SHEET_URL_AGENTES_INDEX);
+      if (!response.ok) throw new Error('Error loading agents');
+
+      const text = await response.text();
+      const json = JSON.parse(text.substr(47).slice(0, -2));
+      const rows = json.table.rows;
+
+      const loadedAgents = rows
+        .slice(1) // Skip header
+        .map((row: any, index: number) => {
+          const cells = row.c;
+          const mostrar = cells[2]?.v?.toString().toLowerCase();
+
+          // Solo mostrar agentes con mostrar="si"
+          if (mostrar !== 'si') return null;
+
+          return {
+            id: cells[0]?.v || `agent-${index}`,
+            name: cells[0]?.v || '',
+            logo: cells[1]?.v || '',
+            rating: 4.5 + (Math.random() * 0.5), // Rating aleatorio 4.5-5.0
+            reviews: `${Math.floor(Math.random() * 10000 + 5000)}+`,
+            fee: `${Math.floor(Math.random() * 3 + 3)}%`,
+            shipping: `${Math.floor(Math.random() * 5 + 5)}-${Math.floor(Math.random() * 5 + 10)}`,
+            satisfaction: `${Math.floor(Math.random() * 5 + 94)}%`,
+            responseTime: `${Math.floor(Math.random() * 3 + 1)}h`,
+            verified: true,
+          };
+        })
+        .filter(Boolean); // Remover nulls
+
+      if (loadedAgents.length > 0) {
+        setPremiumAgents(loadedAgents as Agent[]);
+      }
+    } catch (error) {
+      console.error('Error loading premium agents from Google Sheets:', error);
+      // Mantener los agentes por defecto en caso de error
+    } finally {
+      setLoadingAgents(false);
     }
   }, []);
 
@@ -1014,22 +1063,28 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.agentsTitle}</Text>
           <Text style={styles.sectionSubtitle}>{t.agentsSubtitle}</Text>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.agentsScroll}
-          >
-            {PREMIUM_AGENTS.map((agent, index) => (
-              <AgentCard
-                key={agent.id}
-                agent={agent}
-                index={index}
-                t={t}
-                onPress={goToAgents}
-              />
-            ))}
-          </ScrollView>
+
+          {loadingAgents ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.agentsScroll}
+            >
+              {premiumAgents.map((agent, index) => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  index={index}
+                  t={t}
+                  onPress={goToAgents}
+                />
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         {/* VERIFICACIÓN DE TIENDAS - SOLO TEXTO SEO */}

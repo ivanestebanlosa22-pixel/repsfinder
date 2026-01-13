@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,19 @@ import {
   StatusBar,
   Image,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useAppSettings } from '../../AppSettingsContext';
 import SettingsButton from '../../components/SettingsButton';
 import AnimatedBackground from '../../components/AnimatedBackground';
+
+// ==================== CONFIGURACIÓN GOOGLE SHEETS ====================
+const CONFIG = {
+  SHEET_ID: '1YZmhCC4rBmGpv-IoIvjB8oMV6kVCgOpK4-1rDBa0Ha8',
+  SHEET_AGENTS: 'AGENTS',
+} as const;
+
+const SHEET_URL_AGENTS = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.SHEET_AGENTS}`;
 
 const AGENTS_DATA = [
   {
@@ -448,10 +457,66 @@ const AGENTS_DATA = [
 export default function AgentsScreen() {
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
   const { t } = useAppSettings();
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  const loadAgents = async () => {
+    try {
+      const response = await fetch(SHEET_URL_AGENTS);
+      if (!response.ok) throw new Error('Error loading agents');
+
+      const text = await response.text();
+      const json = JSON.parse(text.substr(47).slice(0, -2));
+      const rows = json.table.rows;
+
+      const loadedAgents = rows
+        .slice(1) // Skip header
+        .map((row: any, index: number) => {
+          const cells = row.c;
+          const mostrar = cells[12]?.v?.toString().toLowerCase();
+
+          // Solo mostrar agentes con mostrar="si"
+          if (mostrar !== 'si') return null;
+
+          return {
+            id: index + 1,
+            name: cells[0]?.v || '',
+            registerUrl: cells[1]?.v || '',
+            productLink: cells[2]?.v || '',
+            logo: cells[3]?.v || '',
+            description: cells[4]?.v || '',
+            reputation: cells[5]?.v || '',
+            commission: cells[6]?.v || '',
+            shipping: cells[7]?.v || '',
+            qc: cells[8]?.v || '',
+            founded: cells[9]?.v || '',
+            pros: (cells[10]?.v || '').split('\n').filter(Boolean),
+            cons: (cells[11]?.v || '').split('\n').filter(Boolean),
+            color: '#4FACFE',
+            badge: index < 3 ? '🏆 TOP' : '✓',
+          };
+        })
+        .filter(Boolean); // Remover nulls
+
+      setAgents(loadedAgents);
+    } catch (error) {
+      console.error('Error loading agents from Google Sheets:', error);
+      // En caso de error, usar datos de fallback
+      setAgents(AGENTS_DATA);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRegister = (url: string) => {
     Linking.openURL(url).catch((err) => console.error('Error opening URL:', err));
   };
+
+  const displayAgents = useMemo(() => agents.length > 0 ? agents : AGENTS_DATA, [agents]);
 
   return (
     <View style={styles.container}>
@@ -467,19 +532,25 @@ export default function AgentsScreen() {
         <SettingsButton />
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: statusBarHeight + 100 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.section}>
-          <Text style={styles.pageTitle}>Ranking 2025: Agentes Verificados</Text>
-          <Text style={styles.pageSubtitle}>
-            Análisis exhaustivo de 20,000+ reseñas • {AGENTS_DATA.length} agentes comparados
-          </Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00e5b0" />
+          <Text style={styles.loadingText}>Cargando agentes...</Text>
         </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: statusBarHeight + 100 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.section}>
+            <Text style={styles.pageTitle}>Ranking 2025: Agentes Verificados</Text>
+            <Text style={styles.pageSubtitle}>
+              Análisis exhaustivo de 20,000+ reseñas • {displayAgents.length} agentes comparados
+            </Text>
+          </View>
 
-        {AGENTS_DATA.map((agent, index) => (
+          {displayAgents.map((agent, index) => (
           <View key={agent.id} style={styles.agentCard}>
             {/* BADGE RANKING */}
             {index < 10 && (
@@ -637,6 +708,18 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 4,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0a0a0a',
+  },
+  loadingText: {
+    color: '#888',
+    fontSize: 16,
+    marginTop: 16,
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
