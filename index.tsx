@@ -431,7 +431,7 @@ const SkeletonLoader = React.memo(() => {
 SkeletonLoader.displayName = 'SkeletonLoader';
 
 // ==================== PRODUCT CARD ====================
-const ProductCard = React.memo(({ product, index, currency }: { product: Product; index: number; currency: Currency }) => {
+const ProductCard = React.memo(({ product, index, currency, onBuyPress }: { product: Product; index: number; currency: Currency; onBuyPress: () => void }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
@@ -457,41 +457,64 @@ const ProductCard = React.memo(({ product, index, currency }: { product: Product
 
   return (
     <AnimatedCard delay={index * CONFIG.ANIMATION_DELAY} style={styles.productCardWrapper}>
-      <TouchableOpacity 
-        style={styles.productCard}
-        activeOpacity={1}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-      >
-        <Animated.View style={[styles.productInner, { transform: [{ scale: scaleAnim }] }]}>
-          <View style={styles.productImageContainer}>
-            {product.foto ? (
-              <Image 
-                source={{ uri: product.foto }} 
-                style={styles.productImageFull} 
-                resizeMode="cover" 
-              />
-            ) : null}
-          </View>
-          <View style={styles.productInfo}>
-            <Text style={styles.productCategory}>{product.categoria}</Text>
-            <Text style={styles.productName} numberOfLines={2}>
-              {product.nombre}
-            </Text>
-            <Text style={styles.productPrice}>
-              {currency} {convertedPrice}
-            </Text>
-            {product.rating > 0 && (
-              <View style={styles.productRating}>
-                <Text style={styles.productRatingText}>★ {product.rating}</Text>
-                {product.ventas > 0 && (
-                  <Text style={styles.productSales}>• {product.ventas} ventas</Text>
-                )}
+      <View style={styles.productCard}>
+        <TouchableOpacity
+          style={styles.productCardImage}
+          activeOpacity={1}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onPress={onBuyPress}
+        >
+          <Animated.View style={[styles.productInner, { transform: [{ scale: scaleAnim }] }]}>
+            <View style={styles.productImageContainer}>
+              {product.foto ? (
+                <Image
+                  source={{ uri: product.foto }}
+                  style={styles.productImageFull}
+                  resizeMode="cover"
+                />
+              ) : null}
+              {product.rating > 0 && (
+                <View style={styles.productRatingBadge}>
+                  <Text style={styles.productRatingBadgeText}>★ {product.rating}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.productInfo}>
+              <Text style={styles.productCategory}>{product.categoria}</Text>
+              <Text style={styles.productName} numberOfLines={2}>
+                {product.nombre}
+              </Text>
+              <View style={styles.productPriceRow}>
+                <View>
+                  <Text style={styles.productPrice}>
+                    {currency} {convertedPrice}
+                  </Text>
+                  {product.ventas > 0 && (
+                    <Text style={styles.productSales}>{product.ventas} ventas</Text>
+                  )}
+                </View>
               </View>
-            )}
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.buyButton}
+          onPress={onBuyPress}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={[COLORS.PRIMARY, COLORS.ACCENT_BLUE]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.buyButtonGradient}
+          >
+            <Text style={styles.buyButtonText}>Comprar</Text>
+            <Text style={styles.buyButtonIcon}>→</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </AnimatedCard>
   );
 });
@@ -928,6 +951,14 @@ export default function HomeScreen() {
     setShowAuthModal(false);
   }, []);
 
+  const handleBuyProduct = useCallback(() => {
+    try {
+      router.push('/validate');
+    } catch (error) {
+      console.log('Error navigating to validate:', error);
+    }
+  }, [router]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.BACKGROUND} />
@@ -1077,11 +1108,12 @@ export default function HomeScreen() {
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {featuredProducts.map((product, index) => (
-                <ProductCard 
+                <ProductCard
                   key={`${product.nombre}-${index}`}
-                  product={product} 
-                  index={index} 
+                  product={product}
+                  index={index}
                   currency={currency}
+                  onBuyPress={handleBuyProduct}
                 />
               ))}
             </ScrollView>
@@ -1479,10 +1511,10 @@ const styles = StyleSheet.create({
     flexShrink: 0 
   },
   whyIconBoxPrimary: {
-    backgroundColor: COLORS.PRIMARY,
+    backgroundColor: COLORS.ACCENT_BLUE,
   },
   whyIconBoxBlue: {
-    backgroundColor: COLORS.ACCENT_BLUE,
+    backgroundColor: COLORS.SECONDARY,
   },
   whyIcon: { 
     fontSize: 18, 
@@ -1515,18 +1547,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, 
     borderColor: COLORS.BORDER_LIGHT 
   },
-  verificationNumber: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: COLORS.PRIMARY, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: 16, 
-    flexShrink: 0 
+  verificationNumber: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.SECONDARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    flexShrink: 0,
   },
   verificationNumberBlue: {
-    backgroundColor: COLORS.ACCENT_BLUE,
+    backgroundColor: COLORS.ACCENT,
   },
   verificationNumberText: { 
     fontSize: 20, 
@@ -1578,67 +1610,111 @@ const styles = StyleSheet.create({
     borderRadius: 6 
   },
   productCardWrapper: {},
-  productCard: { 
-    width: 320, 
-    borderRadius: 18, 
-    marginRight: 16, 
-    overflow: 'hidden' 
+  productCard: {
+    width: 320,
+    borderRadius: 20,
+    marginRight: 16,
+    backgroundColor: COLORS.CARD_BG,
+    borderWidth: 1,
+    borderColor: COLORS.BORDER,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  productInner: { 
-    backgroundColor: COLORS.CARD_BG, 
-    borderRadius: 18, 
-    borderWidth: 1, 
-    borderColor: COLORS.BORDER, 
-    overflow: 'hidden' 
+  productCardImage: {
+    width: '100%',
   },
-  productImageContainer: { 
-    width: '100%', 
-    height: 320, 
-    backgroundColor: '#f8f8f8', 
-    justifyContent: 'center', 
+  productInner: {
+    backgroundColor: COLORS.CARD_BG,
+    overflow: 'hidden',
+  },
+  productImageContainer: {
+    width: '100%',
+    height: 320,
+    backgroundColor: '#f8f8f8',
+    justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
-  productImageFull: { 
-    width: '100%', 
+  productImageFull: {
+    width: '100%',
     height: '100%',
   },
-  productInfo: { padding: 18 },
-  productCategory: { 
-    fontSize: 11, 
-    color: COLORS.TEXT_TERTIARY, 
-    fontWeight: '700', 
-    textTransform: 'uppercase', 
-    marginBottom: 6, 
-    letterSpacing: 0.5 
+  productRatingBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,215,0,0.3)',
   },
-  productName: { 
-    fontSize: 16, 
-    fontWeight: '900', 
-    color: COLORS.TEXT_PRIMARY, 
-    marginBottom: 12, 
-    minHeight: 40, 
-    lineHeight: 21 
+  productRatingBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFD700',
   },
-  productPrice: { 
-    fontSize: 26, 
-    fontWeight: '900', 
-    color: COLORS.TEXT_PRIMARY, 
-    marginBottom: 10 
+  productInfo: { padding: 18, paddingBottom: 16 },
+  productCategory: {
+    fontSize: 11,
+    color: COLORS.ACCENT_BLUE,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
-  productRating: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
+  productName: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 14,
+    minHeight: 40,
+    lineHeight: 22,
   },
-  productRatingText: { 
-    fontSize: 13, 
-    fontWeight: '700', 
-    color: '#FFD700' 
+  productPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
-  productSales: { 
-    fontSize: 13, 
-    color: COLORS.TEXT_TERTIARY, 
-    fontWeight: '600', 
-    marginLeft: 4 
+  productPrice: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 4,
+  },
+  productSales: {
+    fontSize: 12,
+    color: COLORS.TEXT_TERTIARY,
+    fontWeight: '600',
+  },
+  buyButton: {
+    margin: 12,
+    marginTop: 0,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  buyButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buyButtonText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#fff',
+    marginRight: 8,
+  },
+  buyButtonIcon: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#fff',
   },
   
   ctaBackground: { 
