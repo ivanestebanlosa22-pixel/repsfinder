@@ -4,13 +4,21 @@ export type Language = 'es' | 'en';
 
 export const translations = {
   es: {
+    // APP
+    appName: 'RepsFinder',
+
     // TABS
+    tabHome: 'Inicio',
+    tabAgents: 'Agentes',
+    tabValidate: 'Validar',
+    tabCommunity: 'Comunidad',
+    tabLearn: 'Aprender',
     home: 'Inicio',
     agents: 'Agentes',
     validate: 'Validar',
     community: 'Comunidad',
     learn: 'Aprender',
-    
+
     // COMMON
     tagline: 'Compra Seguro. Compra Inteligente.',
     loading: 'Cargando...',
@@ -145,13 +153,21 @@ export const translations = {
     termsText: 'Al continuar, aceptas los Términos y Condiciones'
   },
   en: {
+    // APP
+    appName: 'RepsFinder',
+
     // TABS
+    tabHome: 'Home',
+    tabAgents: 'Agents',
+    tabValidate: 'Validate',
+    tabCommunity: 'Community',
+    tabLearn: 'Learn',
     home: 'Home',
     agents: 'Agents',
     validate: 'Validate',
     community: 'Community',
     learn: 'Learn',
-    
+
     // COMMON
     tagline: 'Shop Safe. Shop Smart.',
     loading: 'Loading...',

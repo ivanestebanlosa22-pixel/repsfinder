@@ -11,6 +11,9 @@ import {
   Modal,
   Linking,
 } from 'react-native';
+import { useAppSettings } from '../../AppSettingsContext';
+import SettingsButton from '../../components/SettingsButton';
+import AnimatedBackground from '../../components/AnimatedBackground';
 
 const SHEET_ID = '1YZmhCC4rBmGpv-IoIvjB8oMV6kVCgOpK4-1rDBa0Ha8';
 const SHEET_NAME = 'MAIN';
@@ -76,7 +79,8 @@ const AGENTS = [
 
 export default function ValidateScreen() {
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
-  
+  const { t } = useAppSettings();
+
   const [selectedCategory, setSelectedCategory] = useState('ZAPATILLAS');
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,11 +176,15 @@ export default function ValidateScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      
-      <View style={[styles.header, { paddingTop: statusBarHeight + 20 }]}>
-        <Text style={styles.logo}>RepsFinder</Text>
-        <Text style={styles.tagline}>Compra Seguro. Compra Inteligente.</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+      <AnimatedBackground />
+
+      <View style={[styles.header, { paddingTop: statusBarHeight + 15 }]}>
+        <View>
+          <Text style={styles.logo}>{t.appName}</Text>
+          <Text style={styles.tagline}>{t.tagline}</Text>
+        </View>
+        <SettingsButton />
       </View>
 
       <View style={[styles.content, { marginTop: statusBarHeight + 90 }]}>
@@ -335,29 +343,34 @@ export default function ValidateScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#000',
+    backgroundColor: '#0a0a0a',
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 15,
     zIndex: 100,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: '#00e5b0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   logo: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#00e5b0',
+    color: '#fff',
+    letterSpacing: -0.5,
   },
   tagline: {
     fontSize: 14,
-    color: '#999',
+    color: '#888',
     marginTop: 4,
+    fontWeight: '500',
   },
 
   content: {

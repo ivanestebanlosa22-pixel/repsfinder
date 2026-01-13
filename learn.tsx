@@ -10,6 +10,8 @@ import {
   Linking,
 } from 'react-native';
 import { useAppSettings } from '../../AppSettingsContext';
+import SettingsButton from '../../components/SettingsButton';
+import AnimatedBackground from '../../components/AnimatedBackground';
 
 const MODULES = [
   {
@@ -426,11 +428,15 @@ export default function LearnScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+      <AnimatedBackground />
 
-      <View style={[styles.header, { paddingTop: statusBarHeight + 20 }]}>
-        <Text style={styles.logo}>RepsFinder</Text>
-        <Text style={styles.tagline}>{t.tagline}</Text>
+      <View style={[styles.header, { paddingTop: statusBarHeight + 15 }]}>
+        <View>
+          <Text style={styles.logo}>{t.appName}</Text>
+          <Text style={styles.tagline}>{t.tagline}</Text>
+        </View>
+        <SettingsButton />
       </View>
 
       <View style={[styles.bannerContainer, { marginTop: statusBarHeight + 90 }]}>
@@ -575,20 +581,23 @@ export default function LearnScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  header: { 
-    position: 'absolute', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    backgroundColor: '#000', 
-    paddingHorizontal: 20, 
-    paddingBottom: 12, 
-    zIndex: 10, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#111' 
+  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#0a0a0a',
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#00e5b0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  logo: { fontSize: 32, fontWeight: '900', color: '#00e5b0', letterSpacing: -0.5 },
+  logo: { fontSize: 32, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
   tagline: { fontSize: 14, color: '#888', marginTop: 4, fontWeight: '500' },
   
   bannerContainer: { 

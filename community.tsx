@@ -15,6 +15,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAppSettings } from '../../AppSettingsContext';
+import SettingsButton from '../../components/SettingsButton';
+import AnimatedBackground from '../../components/AnimatedBackground';
 
 // ==================== CONSTANTS ====================
 const COLORS = {
@@ -738,24 +741,11 @@ SellerCard.displayName = 'SellerCard';
 export default function TopSellersScreen() {
   const router = useRouter();
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
-  
-  const [language, setLanguage] = useState<Language>('es');
+  const { t, language } = useAppSettings();
+
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  const t = useMemo(() => TRANSLATIONS[language], [language]);
-
-  useEffect(() => {
-    loadLanguage();
-  }, []);
-
-  const loadLanguage = useCallback(async () => {
-    try {
-      const savedLang = await AsyncStorage.getItem('app_language');
-      if (savedLang) setLanguage(savedLang as Language);
-    } catch (error) {
-      console.log('Error loading language:', error);
-    }
-  }, []);
+  const tLocal = useMemo(() => TRANSLATIONS[language], [language]);
 
   const filteredSellers = useMemo(() => {
     if (selectedCategory === 'All') return TOP_SELLERS;
@@ -771,24 +761,23 @@ export default function TopSellersScreen() {
 
   const handleCopyWechat = useCallback((wechat: string) => {
     // En React Native web no hay Clipboard, pero en móvil sí
-    Alert.alert(t.wechatCopied, `WeChat: ${wechat}`);
-  }, [t]);
+    Alert.alert(tLocal.wechatCopied, `WeChat: ${wechat}`);
+  }, [tLocal]);
 
   const categories = ['All', 'Sneakers', 'Clothing', 'Mixed'];
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.BACKGROUND} />
+      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+      <AnimatedBackground />
 
       {/* HEADER */}
-      <View style={[styles.header, { paddingTop: statusBarHeight + 20 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.logo}>RepsFinder</Text>
+      <View style={[styles.header, { paddingTop: statusBarHeight + 15 }]}>
+        <View>
+          <Text style={styles.logo}>{t.appName}</Text>
           <Text style={styles.tagline}>{t.tagline}</Text>
         </View>
+        <SettingsButton />
       </View>
 
       {/* SUB-BANNER */}
@@ -808,8 +797,8 @@ export default function TopSellersScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleSection}>
-          <Text style={styles.screenTitle}>{t.title}</Text>
-          <Text style={styles.screenSubtitle}>{t.subtitle}</Text>
+          <Text style={styles.screenTitle}>{tLocal.title}</Text>
+          <Text style={styles.screenSubtitle}>{tLocal.subtitle}</Text>
         </View>
 
         {/* CATEGORIES FILTER */}
@@ -834,7 +823,7 @@ export default function TopSellersScreen() {
                   selectedCategory === cat && styles.categoryButtonTextActive,
                 ]}
               >
-                {t[`${cat.toLowerCase()}Category`] || cat}
+                {tLocal[`${cat.toLowerCase()}Category`] || cat}
               </Text>
             </TouchableOpacity>
           ))}
@@ -847,7 +836,7 @@ export default function TopSellersScreen() {
               key={seller.id}
               seller={seller}
               index={index}
-              t={t}
+              t={tLocal}
               onPressStore={handleViewStore}
               onCopyWechat={handleCopyWechat}
             />
@@ -864,41 +853,35 @@ export default function TopSellersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: '#0a0a0a',
   },
-  
+
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: '#0a0a0a',
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 15,
     zIndex: 100,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER_LIGHT,
+    borderBottomColor: '#00e5b0',
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  backButton: {
-    fontSize: 32,
-    color: COLORS.PRIMARY,
-    fontWeight: '900',
-    marginRight: 16,
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
   logo: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
-    color: COLORS.PRIMARY,
+    color: '#fff',
+    letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: 12,
-    color: COLORS.TEXT_SECONDARY,
-    marginTop: 2,
+    fontSize: 14,
+    color: '#888',
+    marginTop: 4,
+    fontWeight: '500',
   },
   
   subBanner: {
