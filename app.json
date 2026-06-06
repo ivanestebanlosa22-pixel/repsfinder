@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "RepsFinder",
+    "slug": "repsfinder-app",
+    "version": "3.0.2",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "repsfinder",
+    "plugins": [
+      "expo-router",
+      "expo-video",
+      "expo-audio"
+    ],
+    "updates": {
+      "enabled": false
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.repsfinder.app",
+      "buildNumber": "2",
+      "infoPlist": {
+        "UIBackgroundModes": [],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.repsfinder.app",
+      "versionCode": 3,
+      "permissions": [
+        "INTERNET"
+      ],
+      "blockedPermissions": [
+        "CAMERA",
+        "MODIFY_AUDIO_SETTINGS",
+        "READ_EXTERNAL_STORAGE",
+        "READ_MEDIA_AUDIO",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
+        "READ_MEDIA_VISUAL_USER_SELECTED",
+        "RECORD_AUDIO",
+        "SYSTEM_ALERT_WINDOW",
+        "VIBRATE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "ffedc74b-a25a-4c0d-a764-f75fcec4aca0"
+      }
+    },
+    "owner": "ivanukyy"
+  }
+}

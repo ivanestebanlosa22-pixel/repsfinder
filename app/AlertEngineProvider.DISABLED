@@ -1,0 +1,37 @@
+// ==================== ALERT ENGINE PROVIDER ====================
+// Proveedor de contexto para el motor de alertas
+
+import React, { useEffect, useCallback } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
+import { alertEngine } from '../utils/alertEngine';
+import { usePremium } from '../context/PremiumContext';
+import { logger } from '../utils/logger';
+
+export const AlertEngineProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isPremium } = usePremium();
+
+  useEffect(() => {
+    if (!isPremium) {
+      return;
+    }
+
+    // Iniciar el motor
+    alertEngine.start();
+
+    // Escuchar cambios de estado de la app
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        // No reiniciar, el intervalo sigue ejecutándose
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      alertEngine.stop();
+    };
+  }, [isPremium]);
+
+  return <>{children}</>;
+};
+
+export default AlertEngineProvider;
