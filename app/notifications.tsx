@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AppNotification } from './types/premium';
+import type { AppNotification } from '../src/types/premium';
 
 const COLORS = {
   PRIMARY: '#00d4aa',

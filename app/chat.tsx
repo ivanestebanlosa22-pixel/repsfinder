@@ -13,15 +13,14 @@ import {
   Platform,
   ActivityIndicator,
   Image,
-  Alert,
   useWindowDimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePremium } from './context/PremiumContext';
-import { useAppSettings } from './context/AppSettingsContext';
+import { useAppSettings } from '../src/context/AppSettingsContext';
 import { router } from 'expo-router';
-import { sendMessageToGrok } from './services/ai/aiService';
+import { sendMessageToGrokWithProducts } from '../src/services/ai/aiService';
+import * as Sentry from '@sentry/react-native';
 
 const COLORS = {
   PRIMARY: '#00d4aa',
@@ -55,23 +54,8 @@ interface ChatScreenProps {
 const EMPTY_PRODUCTS: any[] = [];
 
 export default function ChatScreen({ products: initialProducts = EMPTY_PRODUCTS, onClose }: ChatScreenProps) {
-  const { isPremium } = usePremium();
   const { t } = useAppSettings();
   const idCounterRef = useRef(0);
-
-  // Protección: redirigir si no es premium
-  useEffect(() => {
-    if (!isPremium) {
-      Alert.alert(
-        'Premium',
-        'El chat IA es una función Premium. Suscríbete para acceder.',
-        [
-          { text: 'Ver Planes', onPress: () => router.replace('/premium') },
-          { text: 'Volver', onPress: () => router.back() },
-        ]
-      );
-    }
-  }, [isPremium]);
   const nextId = () => `msg_${Date.now()}_${++idCounterRef.current}`;
   const [products, setProducts] = useState(initialProducts);
   const [messages, setMessages] = useState<Message[]>([
@@ -113,15 +97,20 @@ export default function ChatScreen({ products: initialProducts = EMPTY_PRODUCTS,
           .map((row: any) => {
             const cells = row.c;
             return {
-              nombre: cells[1]?.v || '',
-              precio: cells[2]?.v || 0,
-              categoria: cells[3]?.v || '',
-              rating: parseFloat(cells[5]?.v) || 0,
-              ventas: parseInt(cells[6]?.v) || 0,
-              activo: cells[4]?.v || '',
-              linkWeidian: cells[7]?.v || '',
-              fotos: [cells[0]?.v, cells[8]?.v, cells[9]?.v, cells[10]?.v].filter(Boolean),
-            };
+               nombre: cells[1]?.v || '',
+               precio: cells[4]?.v || 0,
+               categoria: cells[3]?.v || '',
+               rating: (() => {
+                 const val = cells[5]?.f;
+                 if (!val || val === '') return 0;
+                 const parsed = parseFloat(String(val).replace(',', '.'));
+                 return isNaN(parsed) ? 0 : parsed;
+               })(),
+               ventas: 0,
+               activo: cells[6]?.v || '',
+               linkWeidian: cells[8]?.v || '',
+               fotos: [cells[9]?.v, cells[10]?.v, cells[11]?.v, cells[12]?.v].filter(Boolean),
+             };
           })
           .filter((p: any) => p.activo === 'SI' && p.nombre);
         
@@ -151,13 +140,45 @@ export default function ChatScreen({ products: initialProducts = EMPTY_PRODUCTS,
     setIsLoading(true);
 
     try {
+      // Detectar si es un saludo o consulta general (no mostrar productos)
+      const greetingWords = ['hola', 'buenas', 'buenos', 'días', 'tardes', 'noches', 'gracias', 'adiós', 'chao', 'hey', 'que tal', 'como estas', 'bienvenido'];
+      const isGreeting = greetingWords.some(g => inputText.toLowerCase().trim() === g || inputText.toLowerCase().trim().startsWith(g + ' '));
+
+      // Extraer precio del mensaje
+      let priceMax: number | null = null;
+      let priceMin: number | null = null;
+      const priceRegex = /(menos|menor|inferior|máximo|max|hasta|under|<)\s*(?:de\s*)?(\d+\.?\d*)\s*(?:€|eur|euros)?/i;
+      const priceMaxMatch = inputText.match(priceRegex);
+      if (priceMaxMatch) {
+        priceMax = parseFloat(priceMaxMatch[2]);
+      }
+      const minPriceRegex = /(más|mayor|superior|mínimo|min|desde|sobre|>)\s*(?:de\s*)?(\d+\.?\d*)\s*(?:€|eur|euros)?/i;
+      const priceMinMatch = inputText.match(minPriceRegex);
+      if (priceMinMatch) {
+        priceMin = parseFloat(priceMinMatch[2]);
+      }
+      // También buscar "X€" simple como precio máximo si aparece
+      const simplePriceMatch = inputText.match(/(\d+\.?\d*)\s*(?:€|eur|euros)/i);
+      if (!priceMax && !priceMin && simplePriceMatch) {
+        const ctx = inputText.toLowerCase();
+        // Si hay "menos" o similar antes, es máximo; si hay "más", es mínimo
+        const before = ctx.substring(0, ctx.indexOf(simplePriceMatch[0].toLowerCase()));
+        if (/(menos|menor|inferior|hasta|max|máximo|under)/i.test(before)) {
+          priceMax = parseFloat(simplePriceMatch[1]);
+        } else if (/(más|mayor|superior|min|mínimo|desde)/i.test(before)) {
+          priceMin = parseFloat(simplePriceMatch[1]);
+        } else {
+          priceMax = parseFloat(simplePriceMatch[1]);
+        }
+      }
+
       // Filtrar productos relevantes según el mensaje del usuario
       const userQuery = inputText.toLowerCase();
 
       const searchTerms: Record<string, string[]> = {
         'sudadera': ['sudadera', 'hoodie', 'sweater', 'pullover'],
         'camiseta': ['camiseta', 'shirt', 'tee', 'tshirt'],
-        'zapatilla': ['zapatilla', 'sneaker', 'shoe', 'dunk', 'jordan', 'air', 'force', 'yeezy'],
+        'zapatilla': ['zapatilla', 'sneaker', 'shoe', 'dunk', 'jordan', 'air force', 'yeezy', 'nike', 'adidas', 'new balance', 'air max'],
         'pantalon': ['pantalón', 'pantalon', 'jean', 'jogger', 'cargo', 'short'],
         'cazadora': ['cazadora', 'jacket', 'coat', 'bomber'],
         'gorra': ['gorra', 'cap', 'hat', 'beanie'],
@@ -165,24 +186,48 @@ export default function ChatScreen({ products: initialProducts = EMPTY_PRODUCTS,
       };
 
       let relevantProducts = products;
+      let hasProductQuery = false;
 
       for (const terms of Object.values(searchTerms)) {
         if (terms.some(t => userQuery.includes(t))) {
+          hasProductQuery = true;
           const filtered = products.filter(p => {
             const name = (p.nombre || '').toLowerCase();
             const cat = (p.categoria || '').toLowerCase();
-            return terms.some(t => name.includes(t) || cat.includes(t));
+            const match = terms.some(t => name.includes(t) || cat.includes(t));
+            if (!match) return false;
+            const price = parseFloat(p.precio);
+            if (priceMax && price > priceMax) return false;
+            if (priceMin && price < priceMin) return false;
+            return true;
           });
           if (filtered.length > 0) { relevantProducts = filtered; break; }
         }
       }
 
-      if (relevantProducts.length === products.length) {
-        const keywords = userQuery.split(/\s+/).filter((w: string) => w.length > 2);
+      if (!hasProductQuery && (priceMax !== null || priceMin !== null)) {
+        hasProductQuery = true;
+        const filtered = products.filter(p => {
+          const price = parseFloat(p.precio);
+          if (priceMax && price > priceMax) return false;
+          if (priceMin && price < priceMin) return false;
+          return true;
+        });
+        if (filtered.length > 0) relevantProducts = filtered;
+      }
+
+      if (!hasProductQuery && relevantProducts.length === products.length) {
+        const keywords = userQuery.split(/\s+/).filter((w: string) => w.length > 2 && !greetingWords.includes(w));
         if (keywords.length > 0) {
+          hasProductQuery = true;
           const filtered = products.filter(p => {
             const searchText = (p.nombre || '').toLowerCase() + ' ' + (p.categoria || '').toLowerCase();
-            return keywords.some((k: string) => searchText.includes(k));
+            const match = keywords.some((k: string) => searchText.includes(k));
+            if (!match) return false;
+            const price = parseFloat(p.precio);
+            if (priceMax && price > priceMax) return false;
+            if (priceMin && price < priceMin) return false;
+            return true;
           });
           if (filtered.length > 0) relevantProducts = filtered;
         }
@@ -191,19 +236,22 @@ export default function ChatScreen({ products: initialProducts = EMPTY_PRODUCTS,
       const history = messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
       history.push({ role: 'user', content: userMessage.content });
 
-      const data = await sendMessageToGrok(history, relevantProducts.slice(0, 60));
+      const data = await sendMessageToGrokWithProducts(history, relevantProducts.slice(0, 60));
+
+      const matchedProducts = !isGreeting && hasProductQuery ? relevantProducts.slice(0, 10) : [];
 
       const aiMessage: Message = {
         id: nextId(),
         role: 'assistant',
         content: data.reply,
-        products: data.products || [],
+        products: matchedProducts,
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, aiMessage]);
 
       } catch (error) {
+        Sentry.captureException(error as Error);
         const errorMessage: Message = {
           id: nextId(),
           role: 'assistant',

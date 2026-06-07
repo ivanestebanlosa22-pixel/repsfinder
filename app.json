@@ -2,14 +2,22 @@
   "expo": {
     "name": "RepsFinder",
     "slug": "repsfinder-app",
-    "version": "3.0.2",
+    "version": "3.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "repsfinder",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "plugins": [
       "expo-router",
       "expo-video",
-      "expo-audio"
+      "expo-audio",
+      "@sentry/react-native",
+      "@react-native-google-signin/google-signin"
     ],
     "updates": {
       "enabled": false
@@ -17,7 +25,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.repsfinder.app",
-      "buildNumber": "2",
+      "buildNumber": "28",
       "infoPlist": {
         "UIBackgroundModes": [],
         "NSAppTransportSecurity": {
@@ -30,7 +38,7 @@
     },
     "android": {
       "package": "com.repsfinder.app",
-      "versionCode": 3,
+      "versionCode": 28,
       "permissions": [
         "INTERNET"
       ],
@@ -46,7 +54,13 @@
         "SYSTEM_ALERT_WINDOW",
         "VIBRATE",
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png",
+        "backgroundColor": "#000000"
+      }
     },
     "extra": {
       "router": {
@@ -55,6 +69,9 @@
       "eas": {
         "projectId": "ffedc74b-a25a-4c0d-a764-f75fcec4aca0"
       }
+    },
+    "sentry": {
+      "dsn": "https://0df894bc3ae2fd19c977f0448be7442b@o4511503651373056.ingest.de.sentry.io/4511503654649936"
     },
     "owner": "ivanukyy"
   }

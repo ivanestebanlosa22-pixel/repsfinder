@@ -52,7 +52,7 @@ export const PremiumHomeModal: React.FC<PremiumHomeModalProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { isPremium, alerts: legacyAlerts } = usePremium();
+  const { isPremium } = usePremium();
   const { alerts: smartAlerts, getUnreadTriggers } = useSmartAlerts();
   const { height } = useWindowDimensions();
   

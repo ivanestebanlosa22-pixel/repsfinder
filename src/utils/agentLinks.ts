@@ -30,8 +30,8 @@ export const generateAgentLinks = (weidianUrl: string): AgentLinks | null => {
   if (!productId) return null;
 
   return {
-    kakobuy: `https://www.kakobuy.com/item/details?url=https%3A%2F%2Fweidian.com%2Fitem.html%3FitemID%3D${productId}&affcode=hc9hzsSI`,
-    usfans: `https://www.usfans.com/product/3/${productId}?ref=RCGD5YSI`,
+    kakobuy: `https://ikako.vip/fue5c`,
+    usfans: `https://www.usfans.com/product/3/${productId}?ref=RCGD5Y`,
     mulebuy: `https://mulebuy.com/product/?shop_type=weidian&id=${productId}&ref=200642502`,
     joyagoo: `https://joyagoo.com/product?platform=WEIDIAN&id=${productId}&ref=300768147`,
     oppbuy: `https://oopbuy.com/product/weidian/${productId}?inviteCode=GH40R4J0O`,

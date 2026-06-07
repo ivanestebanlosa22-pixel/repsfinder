@@ -23,8 +23,9 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams, router } from 'expo-router';
-import type { Agent, GoogleSheetData } from '../types';
-import { logger } from '../utils/logger';
+import type { Agent, GoogleSheetData } from '../../src/types';
+import { logger } from '../../src/utils/logger';
+import * as Sentry from '@sentry/react-native';
 
 const HEADER_BG = 'https://www.shutterstock.com/image-photo/front-cargo-container-ship-ocean-600nw-2659440041.jpg';
 
@@ -179,6 +180,7 @@ export default function AgentsScreen() {
       setAgents(allAgents);
       setLoading(false);
     } catch (error) {
+      Sentry.captureException(error as Error);
       logger.error('Error fetching agents:', error);
       setLoading(false);
     }
@@ -413,14 +415,10 @@ export default function AgentsScreen() {
                           <View style={styles.ratingRow}>
                             <Text style={styles.star}>⭐</Text>
                             <Text style={styles.ratingText}>{agent.rating}/5</Text>
-                            <Text style={styles.reviewsText}>({agent.reviews} {t('reviewsCount')})</Text>
                           </View>
 
                           <View style={styles.foundedRow}>
                             <Text style={styles.foundedText}>{t('sinceLabel')} {agent.founded}</Text>
-                            {agent.trustpilot?.rating && (
-                              <Text style={styles.trustpilotText}>  TP: {agent.trustpilot.rating}⭐</Text>
-                            )}
                           </View>
                         </View>
                       </View>
@@ -551,6 +549,17 @@ export default function AgentsScreen() {
                           </LinearGradient>
                         </TouchableOpacity>
                       </Animated.View>
+
+                      {/* VER PRODUCTO BUTTON */}
+                      {agent.productLink && (
+                        <TouchableOpacity
+                          style={styles.productLinkButton}
+                          onPress={() => handleRegister(agent.productLink)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.productLinkText}>🔗 {t('viewProduct')}</Text>
+                        </TouchableOpacity>
+                      )}
 
                     </LinearGradient>
                   </View>
@@ -860,5 +869,19 @@ const styles = StyleSheet.create({
   aiCTASubtitle: { fontSize: 12, color: COLORS.TEXT_SECONDARY, lineHeight: 17 },
   aiCTAArrow: { fontSize: 28, color: COLORS.SECONDARY, fontWeight: '700' },
 
+  productLinkButton: {
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  productLinkText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.PRIMARY,
+  },
   bottomSpacer: { height: 20 },
 });

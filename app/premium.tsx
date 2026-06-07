@@ -16,10 +16,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { usePremium } from './context/PremiumContext';
+import { usePremium } from '../src/context/PremiumContext';
 import { useTranslation } from 'react-i18next';
-import { logger } from './utils/logger';
-import * as iapService from './utils/payments/mockIapService';
+import { logger } from '../src/utils/logger';
 
 const COLORS = {
   PRIMARY: '#00d4aa',
@@ -45,6 +44,7 @@ export default function PremiumScreen() {
   const {
     isPremium,
     subscription,
+    products,
     subscribe,
     cancelSubscription,
     restorePurchases: restorePurchasesCtx,
@@ -53,7 +53,7 @@ export default function PremiumScreen() {
   const [loadingMonthly, setLoadingMonthly] = useState(false);
   const [loadingYearly, setLoadingYearly] = useState(false);
   const [loadingRestore, setLoadingRestore] = useState(false);
-  const [prices, setPrices] = useState({ monthly: '0,99 €', yearly: '4,99 €' });
+  const [prices, setPrices] = useState({ monthly: '4,99 €', yearly: '29,99 €' });
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
 
   const BENEFITS = [
@@ -61,11 +61,6 @@ export default function PremiumScreen() {
       icon: '🤖',
       title: t('discoverPremiumAI'),
       desc: t('discoverPremiumAIDesc'),
-    },
-    {
-      icon: '👗',
-      title: t('discoverPremiumVirtualTry'),
-      desc: t('discoverPremiumVirtualTryDesc'),
     },
     {
       icon: '⭐',
@@ -90,27 +85,15 @@ export default function PremiumScreen() {
   ];
 
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        await iapService.initializeIAP();
-        const subscriptions = await iapService.getSubscriptions();
-        if (subscriptions.length > 0) {
-          const monthly = subscriptions.find((p: any) => p.productId === iapService.productIds.PREMIUM_MONTHLY);
-          const yearly = subscriptions.find((p: any) => p.productId === iapService.productIds.PREMIUM_YEARLY);
-          if (monthly || yearly) {
-            setPrices({
-              monthly: monthly?.localizedPrice || '0,99 €',
-              yearly: yearly?.localizedPrice || '4,99 €',
-            });
-          }
-        }
-      } catch (error) {
-        logger.error('Error loading IAP products:', error);
-      }
-    };
-    loadProducts();
-    return () => { iapService.closeIAPConnection().catch(() => {}); };
-  }, []);
+    const monthly = products.find(p => p.identifier === 'premium_monthly');
+    const yearly = products.find(p => p.identifier === 'premium_yearly');
+    if (monthly || yearly) {
+      setPrices({
+        monthly: monthly?.priceString || '4,99 €',
+        yearly: yearly?.priceString || '29,99 €',
+      });
+    }
+  }, [products]);
 
   const handleSubscribe = async (type: 'monthly' | 'yearly') => {
     const setLoading = type === 'monthly' ? setLoadingMonthly : setLoadingYearly;

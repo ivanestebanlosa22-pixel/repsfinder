@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Text, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 function Emoji({ children }: { children: string }) {
   return (
@@ -13,6 +13,7 @@ function Emoji({ children }: { children: string }) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <View style={{ flex: 1 }}>
@@ -40,35 +41,35 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="descubrir"
           options={{
-            title: i18n.t('tabDiscover'),
+            title: t('tabDiscover'),
             tabBarIcon: () => <Emoji>🏠</Emoji>,
           }}
         />
         <Tabs.Screen
           name="agentes"
           options={{
-            title: i18n.t('tabAgents'),
+            title: t('tabAgents'),
             tabBarIcon: () => <Emoji>👥</Emoji>,
           }}
         />
         <Tabs.Screen
           name="validar"
           options={{
-            title: i18n.t('tabValidate'),
+            title: t('tabValidate'),
             tabBarIcon: () => <Emoji>✅</Emoji>,
           }}
         />
         <Tabs.Screen
           name="top-tiendas"
           options={{
-            title: i18n.t('tabStores'),
+            title: t('tabStores'),
             tabBarIcon: () => <Emoji>🛍️</Emoji>,
           }}
         />
         <Tabs.Screen
           name="aprender"
           options={{
-            title: i18n.t('tabLearn'),
+            title: t('tabLearn'),
             tabBarIcon: () => <Emoji>📚</Emoji>,
           }}
         />

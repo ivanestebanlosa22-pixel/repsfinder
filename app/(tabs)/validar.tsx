@@ -13,20 +13,21 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
     useWindowDimensions,
     TextInput,
     ImageBackground,
+    KeyboardAvoidingView,
   } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
  import { useTranslation } from 'react-i18next';
  import { useLocalSearchParams } from 'expo-router';
-  import { useAppSettings } from '../context/AppSettingsContext';
-  import { usePremium } from '../context/PremiumContext';
-  import PaywallModal from '../components/premium/PaywallModal';
-import MannequinCanvas from '../components/MannequinCanvas';
-import { AIChatFAB } from '../components/AIChatFAB';
+  import { useAppSettings } from '../../src/context/AppSettingsContext';
+  import { usePremium } from '../../src/context/PremiumContext';
+  import PaywallModal from '../../src/components/premium/PaywallModal';
+import { AIChatFAB } from '../../src/components/AIChatFAB';
 import { router } from 'expo-router';
 
-import type { Product, Agent, ProductBadge } from '../types';
-import { CURRENCY_RATES, CURRENCY_SYMBOLS } from '../types';
-import { logger } from '../utils/logger';
+import type { Product, Agent, ProductBadge } from '../../src/types';
+import { CURRENCY_RATES, CURRENCY_SYMBOLS } from '../../src/types';
+import { logger } from '../../src/utils/logger';
+import * as Sentry from '@sentry/react-native';
 
 const HEADER_BG = 'https://www.shutterstock.com/image-photo/front-cargo-container-ship-ocean-600nw-2659440041.jpg';
 
@@ -182,6 +183,11 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     'calzoncillo','brief','thong','sports bra'],
   'CALCETINES': ['calcetines','socks','medias','ankle socks','crew socks'],
   'MOCHILA': ['mochila','backpack'],
+  'MUJER': ['mujer','woman','women','female','lady','ladies','dress','vestido',
+    'falda','skirt','top','blusa','blouse','body','corset','camisola','tanga',
+    'bikini','swimsuit','bañador','pareo','kimono','babydoll','pijama','nightwear',
+    'leggings','yoga pants','sport bra','push up','realza','sin costuras',
+    'strapless','sin tirantes','escote','espalda','abierto','transparente'],
 };
 
 const smartCategorizarProducto = (nombre: string, categoriaOriginal: string): string => {
@@ -236,8 +242,7 @@ const generateAgentLinks = (weidianUrl: string): {
 export default function ValidateScreen() {
   const { t, i18n } = useTranslation();
   const { currency } = useAppSettings();
-  const { canCompareProducts, subscription } = usePremium();
-  const isPremium = subscription !== 'free';
+  const { canCompareProducts, isPremium } = usePremium();
   const searchParams = useLocalSearchParams();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -261,8 +266,6 @@ export default function ValidateScreen() {
      const [productToCompare, setProductToCompare] = useState<Product | null>(null);
      const [comparisonProducts, setComparisonProducts] = useState<Product[]>([]);
       const [showPaywall, setShowPaywall] = useState(false);
-      const [modalManiquiVisible, setModalManiquiVisible] = useState(false);
-
    const [selectedComparisonProduct, setSelectedComparisonProduct] = useState<Product | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [visibleProducts, setVisibleProducts] = useState(20);
@@ -458,6 +461,7 @@ export default function ValidateScreen() {
         // });
       setAgents(agentsToShow);
    } catch (error) {
+     Sentry.captureException(error as Error);
      logger.error('Error agentes:', error);
    }
   };
@@ -509,25 +513,30 @@ export default function ValidateScreen() {
         const allProducts = rows.map((row: any, index: number) => {
         const cells = row.c;
         const nombre = cells[1]?.v || '';
-        const linkWeidian = cells[7]?.v || '';
+        const linkWeidian = cells[8]?.v || '';
         const agentLinks = generateAgentLinks(linkWeidian);
         
-        // Parse precio - remove $ and convert to number
-        const rawPrecio = cells[2]?.v || '0';
+        // Parse precio
+        const rawPrecio = cells[4]?.v || '0';
         const precioNum = typeof rawPrecio === 'string' 
           ? parseFloat(rawPrecio.replace(/[^0-9.]/g, '')) || 0 
           : rawPrecio;
         
         return {
           id: `product-${index}`,
-          foto: cells[0]?.v || '',
+          foto: cells[9]?.v || '',
           nombre,
           precio: precioNum,
           categoriaOriginal: cells[3]?.v || '',
           categoria: smartCategorizarProducto(nombre, cells[3]?.v || ''),
-          activo: cells[4]?.v || '',
-          rating: cells[5]?.v || 0,
-          ventas: cells[6]?.v || 0,
+          activo: cells[6]?.v || '',
+          rating: (() => {
+            const val = cells[5]?.f;
+            if (!val || val === '') return 0;
+            const parsed = parseFloat(String(val).replace(',', '.'));
+            return isNaN(parsed) ? 0 : parsed;
+          })(),
+          ventas: 0,
           linkWeidian,
           linkKakobuy: agentLinks?.kakobuy || '',
           linkUsfans: agentLinks?.usfans || '',
@@ -538,15 +547,15 @@ export default function ValidateScreen() {
           linkHipobuy: agentLinks?.hipobuy || '',
           linkSuperbuy: agentLinks?.superbuy || '',
           linkAcbuy: agentLinks?.acbuy || '',
-          foto1: cells[8]?.v || '',
-          foto2: cells[9]?.v || '',
-          foto3: cells[10]?.v || '',
-          foto4: cells[11]?.v || '',
-          foto5: cells[12]?.v || '',
-          foto6: cells[13]?.v || '',
-          descripcion: cells[14]?.v || '',
-          descripcionEn: cells[15]?.v || '',
-          marca: extractBrand(nombre),
+          foto1: cells[10]?.v || '',
+          foto2: cells[11]?.v || '',
+          foto3: cells[12]?.v || '',
+          foto4: cells[13]?.v || '',
+          foto5: cells[14]?.v || '',
+          foto6: cells[15]?.v || '',
+          descripcion: cells[16]?.v || '',
+          descripcionEn: cells[17]?.v || '',
+          marca: cells[2]?.v || extractBrand(nombre),
         };
       }).filter((p: any) => 
         p.activo &&
@@ -658,10 +667,8 @@ export default function ValidateScreen() {
   };
 
   const getBadge = useCallback((product: any) => {
-    if (product.rating >= 4.8) return { text: 'TOP 1', color: '#8B5CF6' };
-    if (product.ventas > 100) return { text: t('trending'), color: '#FF6B6B' };
-    if (product.ventas > 50) return { text: 'POPULAR', color: '#FFD700' };
-    if (product.rating >= 4.5) return { text: 'PREMIUM', color: '#4FACFE' };
+    if (product.rating >= 4.8) return { text: t('topRated'), color: '#8B5CF6' };
+    if (product.rating >= 4.5) return { text: t('recommended'), color: '#4FACFE' };
     if (product.precio < 20) return { text: t('offer'), color: '#AB47BC' };
     return null;
   }, [t]);
@@ -717,7 +724,19 @@ export default function ValidateScreen() {
               removeClippedSubviews={true}
               scrollEventThrottle={16}
             >
-               {/* CATEGORÍA TOP PRODUCTS */}
+                {/* COMPARADOR */}
+              <TouchableOpacity
+                style={styles.catItem}
+                onPress={() => router.push('/comparador')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.catIcon}>🔗</Text>
+                <Text style={styles.catText} numberOfLines={1}>
+                  COMPARADOR
+                </Text>
+              </TouchableOpacity>
+
+              {/* CATEGORÍA TOP PRODUCTS */}
               <TouchableOpacity
                 style={[
                   styles.catItem,
@@ -793,22 +812,6 @@ export default function ValidateScreen() {
               <Text style={styles.brandTagText}>
                 {brandsByCategory.length}
               </Text>
-            </TouchableOpacity>
-
-            {/* BOTÓN MANIQUÍ - PREMIUM */}
-            <TouchableOpacity 
-              style={[styles.brandTag, !isPremium && styles.brandTagLocked]}
-              onPress={() => {
-                if (!isPremium) { setShowPaywall(true); return; }
-                setShowProductModal(false);
-                setShowBrandModal(false);
-                setShowSearchModal(false);
-                setModalManiquiVisible(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.brandTagIcon}>👘</Text>
-              {!isPremium && <Text style={styles.lockIconSmall}>🔒</Text>}
             </TouchableOpacity>
 
             {/* BOTÓN DE BÚSQUEDA PREMIUM */}
@@ -887,11 +890,11 @@ export default function ValidateScreen() {
                         <Text style={[styles.productName, { flex: 1 }]} numberOfLines={2}>{product.nombre}</Text>
                         <TouchableOpacity
                           onPress={() => toggleFavorite(product.id)}
-                          style={styles.heartBtn}
+                          style={styles.favHeartBtn}
                           activeOpacity={0.7}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={styles.heartIcon}>
+                          <Text style={styles.favHeartIcon}>
                             {favorites.has(product.id) ? '❤️' : '🤍'}
                           </Text>
                         </TouchableOpacity>
@@ -1050,10 +1053,10 @@ export default function ValidateScreen() {
                     {selectedBrand === brand && <Text style={styles.brandCheck}>✓</Text>}
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
-            </View>
+</ScrollView>
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
       {/* MODAL DE BÚSQUEDA PREMIUM */}
       <Modal
@@ -1062,7 +1065,10 @@ export default function ValidateScreen() {
         animationType="fade"
         onRequestClose={() => setShowSearchModal(false)}
       >
-        <View style={styles.searchModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.searchModalOverlay}
+        >
           <View style={styles.searchModalBox}>
             <View style={styles.searchModalHeader}>
               <View>
@@ -1158,7 +1164,7 @@ export default function ValidateScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* MODAL DE AGENTES */}
@@ -1518,55 +1524,6 @@ export default function ValidateScreen() {
          onClose={() => setShowPaywall(false)}
        />
 
-      {/* MODAL DEL MANIQUÍ */}
-      <Modal
-        visible={modalManiquiVisible}
-        animationType="slide"
-        onRequestClose={() => setModalManiquiVisible(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
-          <View style={{ 
-            flex: 1, 
-            paddingTop: Platform.OS === 'ios' ? 50 : 30,
-            paddingHorizontal: 16 
-          }}>
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: 16
-            }}>
-              <Text style={{ 
-                fontSize: 24, 
-                fontWeight: '900', 
-                color: '#fff' 
-              }}>
-                👘 Maniquí
-              </Text>
-              <TouchableOpacity
-                onPress={() => setModalManiquiVisible(false)}
-                style={{
-                  padding: 8,
-                  borderRadius: 20,
-                  backgroundColor: 'rgba(255,255,255,0.1)'
-                }}
-              >
-                <Text style={{ 
-                  fontSize: 24, 
-                  color: '#fff',
-                  fontWeight: '300'
-                }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <MannequinCanvas 
-              products={products}
-              onBack={() => setModalManiquiVisible(false)}
-              language={i18n.language as 'es' | 'en'}
-            />
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1887,10 +1844,10 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     gap: 8,
   },
-  heartBtn: {
+  favHeartBtn: {
     paddingTop: 2,
   },
-  heartIcon: {
+  favHeartIcon: {
     fontSize: 22,
   },
 
@@ -2093,6 +2050,11 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.BORDER,
+  },
+  searchSubtitle: {
+    fontSize: 12,
+    color: COLORS.TEXT_SECONDARY,
+    marginTop: 4,
   },
   searchModalScroll: {
     paddingHorizontal: 20,

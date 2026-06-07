@@ -59,6 +59,7 @@ export interface Agent {
   pros?: string;
   cons?: string;
   register?: string;
+  productLink?: string;
   bonus?: string;
   costoEnvio?: string;
   diasEnvio?: string;

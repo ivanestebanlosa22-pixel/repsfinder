@@ -15,6 +15,8 @@ import {
   Alert,
   ImageBackground,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  AppState,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -31,10 +33,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { useAppSettings } from '../context/AppSettingsContext';
-import { logger } from '../utils/logger';
-import { usePremium } from '../context/PremiumContext';
-import PremiumHomeModal from '../components/premium/PremiumHomeModal';
+import { useAppSettings } from '../../src/context/AppSettingsContext';
+import { logger } from '../../src/utils/logger';
+import { usePremium } from '../../src/context/PremiumContext';
+import PremiumHomeModal from '../../src/components/premium/PremiumHomeModal';
+import { signInWithGoogle, isGoogleSignInAvailable } from '../../src/utils/googleSignIn';
+import * as Sentry from '@sentry/react-native';
+import { supabase } from '../../src/utils/supabase';
 
 // ==================== CONSTANTS ====================
 const CONFIG = {
@@ -345,9 +350,6 @@ const ProductCard = React.memo(({ product, index, currency, onValidate }: {
             <Text style={styles.productPrice}>
               {currency} {convertedPrice}
             </Text>
-            {product.ventas > 0 && (
-              <Text style={styles.productSales}>• {product.ventas} {t('sales')}</Text>
-            )}
             {/* Botón Validar PREMIUM */}
             <TouchableOpacity
               style={styles.validateButton}
@@ -458,6 +460,28 @@ const LoginRegisterModal = React.memo(({ visible, onClose }: { visible: boolean;
   const [username, setUsername] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      (async () => {
+        try {
+          const saved = await AsyncStorage.getItem('repsfinder_remember');
+          if (saved) {
+            const { email: savedEmail, password: savedPass } = JSON.parse(saved);
+            setEmail(savedEmail || '');
+            setPassword(savedPass || '');
+            setRememberMe(true);
+          }
+        } catch {}
+      })();
+    }
+  }, [visible]);
 
   const resetForm = useCallback(() => {
     setEmail('');
@@ -465,6 +489,11 @@ const LoginRegisterModal = React.memo(({ visible, onClose }: { visible: boolean;
     setUsername('');
     setConfirmPassword('');
     setIsSubmitting(false);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setShowForgotPassword(false);
+    setResetEmail('');
+    setResetSent(false);
   }, []);
 
   const handleLogin = useCallback(async () => {
@@ -476,13 +505,12 @@ const LoginRegisterModal = React.memo(({ visible, onClose }: { visible: boolean;
     try {
       const users = await AsyncStorage.getItem('repsfinder_users');
       
-      // ✅ Safe JSON parsing for AsyncStorage
       let userList: any[] = [];
       if (users) {
         try {
           userList = JSON.parse(users);
         } catch (parseError) {
-          logger.error('Error parsing user data:', parseError);
+          Sentry.captureException(parseError as Error);
           Alert.alert(t('error'), t('errorLoadingUserData'));
           return;
         }
@@ -491,6 +519,11 @@ const LoginRegisterModal = React.memo(({ visible, onClose }: { visible: boolean;
       const user = userList.find((u: any) => u.email === email && u.password === password);
       if (user) {
         await AsyncStorage.setItem('repsfinder_current_user', JSON.stringify(user));
+        if (rememberMe) {
+          await AsyncStorage.setItem('repsfinder_remember', JSON.stringify({ email, password }));
+        } else {
+          await AsyncStorage.removeItem('repsfinder_remember');
+        }
         Alert.alert(t('welcomeMessage'), `${t('helloUser')} ${user.username}`);
         resetForm();
         onClose();
@@ -498,11 +531,12 @@ const LoginRegisterModal = React.memo(({ visible, onClose }: { visible: boolean;
         Alert.alert(t('error'), t('invalidCredentials'));
       }
     } catch (error) {
+      Sentry.captureException(error as Error);
       Alert.alert(t('error'), t('errorLogin'));
     } finally {
       setIsSubmitting(false);
     }
-  }, [email, password, t, resetForm, onClose]);
+  }, [email, password, rememberMe, t, resetForm, onClose]);
 
   const handleRegister = useCallback(async () => {
     if (!username || !email || !password || !confirmPassword) {
@@ -519,30 +553,36 @@ const LoginRegisterModal = React.memo(({ visible, onClose }: { visible: boolean;
     }
     setIsSubmitting(true);
     try {
-      const users = await AsyncStorage.getItem('repsfinder_users');
-      
-      let userList: any[] = [];
-      if (users) {
-        try {
-          userList = JSON.parse(users);
-        } catch (parseError) {
-          logger.error('Error parsing user data:', parseError);
-          Alert.alert(t('error'), t('errorLoadingUserData'));
+      // Registrar en Supabase Auth (envía email de verificación)
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username } },
+      });
+      if (signUpError) {
+        if (signUpError.message?.includes('already registered')) {
+          Alert.alert(t('error'), t('emailAlreadyRegistered'));
           setIsSubmitting(false);
           return;
         }
+        throw signUpError;
       }
-      
-      if (userList.find((u: any) => u.email === email)) {
-        Alert.alert(t('error'), t('emailAlreadyRegistered'));
-        setIsSubmitting(false);
-        return;
+
+      // Guardar también en AsyncStorage como fallback
+      const users = await AsyncStorage.getItem('repsfinder_users');
+      let userList: any[] = [];
+      if (users) {
+        try { userList = JSON.parse(users); } catch {}
       }
-      const newUser = { username, email, password, createdAt: new Date().toISOString() };
+      const newUser = { username, email, password: '', createdAt: new Date().toISOString(), supabaseId: signUpData?.user?.id };
       userList.push(newUser);
       await AsyncStorage.setItem('repsfinder_users', JSON.stringify(userList));
       await AsyncStorage.setItem('repsfinder_current_user', JSON.stringify(newUser));
-      Alert.alert(t('success'), t('accountCreatedSuccess'));
+
+      Alert.alert(
+        t('success'),
+        t('accountCreatedVerify') || 'Cuenta creada. Revisa tu email para verificar la cuenta.'
+      );
       resetForm();
       onClose();
     } catch (error) {
@@ -560,126 +600,277 @@ const LoginRegisterModal = React.memo(({ visible, onClose }: { visible: boolean;
           activeOpacity={1}
           onPress={onClose}
         />
-        <ImageBackground
-          source={{ uri: IMAGES.HERO }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalBox}
-          imageStyle={styles.modalBackgroundImage}
         >
-          <View style={styles.modalOverlayInner}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isLogin ? t('modalLogin') : t('modalRegister')}
-              </Text>
-              <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                style={[styles.tab, isLogin && styles.tabActive]}
-                onPress={() => setIsLogin(true)}
-                disabled={isSubmitting}
-              >
-                <Text style={[styles.tabText, isLogin && styles.tabTextActive]}>
-                  {t('modalLogin')}
+          <ImageBackground
+            source={{ uri: IMAGES.HERO }}
+            style={styles.modalBox}
+            imageStyle={styles.modalBackgroundImage}
+          >
+            <View style={styles.modalOverlayInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {isLogin ? t('modalLogin') : t('modalRegister')}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, !isLogin && styles.tabActive]}
-                onPress={() => setIsLogin(false)}
-                disabled={isSubmitting}
+                <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={styles.modalContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                <Text style={[styles.tabText, !isLogin && styles.tabTextActive]}>
-                  {t('modalRegister')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {!isLogin && (
+              <View style={styles.tabContainer}>
+                <TouchableOpacity
+                  style={[styles.tab, isLogin && styles.tabActive]}
+                  onPress={() => setIsLogin(true)}
+                  disabled={isSubmitting}
+                >
+                  <Text style={[styles.tabText, isLogin && styles.tabTextActive]}>
+                    {t('modalLogin')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, !isLogin && styles.tabActive]}
+                  onPress={() => setIsLogin(false)}
+                  disabled={isSubmitting}
+                >
+                  <Text style={[styles.tabText, !isLogin && styles.tabTextActive]}>
+                    {t('modalRegister')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {!isLogin && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('username')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={username}
+                    onChangeText={setUsername}
+                    placeholder={t('username')}
+                    placeholderTextColor={COLORS.TEXT_TERTIARY}
+                    autoCapitalize="none"
+                    editable={!isSubmitting}
+                  />
+                </View>
+              )}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{t('username')}</Text>
+                <Text style={styles.inputLabel}>{t('email')}</Text>
                 <TextInput
                   style={styles.input}
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder={t('username')}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="email@example.com"
                   placeholderTextColor={COLORS.TEXT_TERTIARY}
+                  keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!isSubmitting}
                 />
               </View>
-            )}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('email')}</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="email@example.com"
-                placeholderTextColor={COLORS.TEXT_TERTIARY}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!isSubmitting}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('password')}</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                placeholderTextColor={COLORS.TEXT_TERTIARY}
-                secureTextEntry
-                editable={!isSubmitting}
-              />
-            </View>
-            {!isLogin && (
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{t('confirmPassword')}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor={COLORS.TEXT_TERTIARY}
-                  secureTextEntry
-                  editable={!isSubmitting}
-                />
+                <Text style={styles.inputLabel}>{t('password')}</Text>
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor={COLORS.TEXT_TERTIARY}
+                    secureTextEntry={!showPassword}
+                    editable={!isSubmitting}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Text style={styles.eyeIcon}>{showPassword ? '👁' : '👁‍🗨'}</Text>
+                  </TouchableOpacity>
+                </View>
+                {isLogin && (
+                  <TouchableOpacity
+                    style={styles.forgotRow}
+                    onPress={() => { setResetEmail(email); setShowForgotPassword(true); }}
+                  >
+                    <Text style={styles.forgotText}>{t('forgotPassword')}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
-            <TouchableOpacity
-              style={[styles.actionButton, isSubmitting && styles.actionButtonDisabled]}
-              onPress={isLogin ? handleLogin : handleRegister}
-              disabled={isSubmitting}
-              activeOpacity={0.9}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#000" />
-              ) : (
-                <LinearGradient
-                  colors={[COLORS.SECONDARY, COLORS.ACCENT]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.actionButtonGradient}
-                >
-                  <Text style={styles.actionButtonText}>
-                    {isLogin ? t('enterButton') : t('createButton')}
-                  </Text>
-                </LinearGradient>
+              {!isLogin && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('confirmPassword')}</Text>
+                  <View style={styles.passwordRow}>
+                    <TextInput
+                      style={[styles.input, styles.passwordInput]}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      placeholder="••••••••"
+                      placeholderTextColor={COLORS.TEXT_TERTIARY}
+                      secureTextEntry={!showConfirmPassword}
+                      editable={!isSubmitting}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeButton}
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      <Text style={styles.eyeIcon}>{showConfirmPassword ? '👁' : '👁‍🗨'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               )}
-            </TouchableOpacity>
-            {!isLogin && (
-              <Text style={styles.termsText}>{t('termsText')}</Text>
-            )}
-            <View style={{ height: 40 }} />
-          </ScrollView>
-          </View>
-        </ImageBackground>
+
+              {isLogin && (
+                <TouchableOpacity
+                  style={styles.rememberRow}
+                  onPress={() => setRememberMe(!rememberMe)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.rememberCheckbox, rememberMe && styles.rememberCheckboxActive]}>
+                    {rememberMe && <Text style={styles.rememberCheckMark}>✓</Text>}
+                  </View>
+                  <Text style={styles.rememberText}>{t('rememberMe')}</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.actionButton, isSubmitting && styles.actionButtonDisabled]}
+                onPress={isLogin ? handleLogin : handleRegister}
+                disabled={isSubmitting}
+                activeOpacity={0.9}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <LinearGradient
+                    colors={[COLORS.SECONDARY, COLORS.ACCENT]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionButtonGradient}
+                  >
+                    <Text style={styles.actionButtonText}>
+                      {isLogin ? t('enterButton') : t('createButton')}
+                    </Text>
+                  </LinearGradient>
+                )}
+              </TouchableOpacity>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>o</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={async () => {
+                  try {
+                    const result = await signInWithGoogle();
+                    if (result) {
+                      resetForm();
+                      onClose();
+                    }
+                  } catch (e) {
+                    // Error ya manejado en signInWithGoogle
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.googleIconCircle}>
+                  <Text style={styles.googleIconG}>G</Text>
+                </View>
+                <Text style={styles.googleButtonText}>{t('continueWithGoogle')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.guestButton}
+                onPress={onClose}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.guestButtonText}>{t('continueAsGuest')}</Text>
+              </TouchableOpacity>
+              {!isLogin && (
+                <Text style={styles.termsText}>{t('termsText')}</Text>
+              )}
+<View style={{ height: 40 }} />
+              </ScrollView>
+              {showForgotPassword && (
+                <View style={styles.forgotOverlay}>
+                  <View style={styles.forgotContainer}>
+                    <Text style={styles.forgotTitle}>{t('resetPassword')}</Text>
+                    <Text style={styles.forgotDesc}>{t('resetPasswordDesc')}</Text>
+                    {resetSent ? (
+                      <>
+                        <Text style={styles.resetSentIcon}>✅</Text>
+                        <Text style={styles.resetSentText}>{t('resetPasswordSent')}</Text>
+                        <TouchableOpacity
+                          style={styles.forgotBackBtn}
+                          onPress={() => { setShowForgotPassword(false); setResetSent(false); }}
+                        >
+                          <Text style={styles.forgotBackText}>{t('backToLogin')}</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <>
+                        <View style={styles.inputGroup}>
+                          <TextInput
+                            style={styles.input}
+                            value={resetEmail}
+                            onChangeText={setResetEmail}
+                            placeholder="email@example.com"
+                            placeholderTextColor={COLORS.TEXT_TERTIARY}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                          />
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.actionButton, isSubmitting && styles.actionButtonDisabled]}
+                          onPress={async () => {
+                            if (!resetEmail) { Alert.alert(t('error'), t('enterEmail')); return; }
+                            setIsSubmitting(true);
+                            try {
+                              const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+                                redirectTo: 'repsfinder://reset-password',
+                              });
+                              if (error) {
+                                if (error.message?.includes('Email not found') || error.message?.includes('User not found')) {
+                                  // No revelar si el email existe o no por seguridad
+                                }
+                              }
+                              setResetSent(true);
+                            } catch (e) {
+                              Alert.alert(t('error'), t('errorGeneral'));
+                            } finally {
+                              setIsSubmitting(false);
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <ActivityIndicator color="#000" />
+                          ) : (
+                            <LinearGradient
+                              colors={[COLORS.SECONDARY, COLORS.ACCENT]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={styles.actionButtonGradient}
+                            >
+                              <Text style={styles.actionButtonText}>{t('sendResetLink')}</Text>
+                            </LinearGradient>
+                          )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.forgotBackBtn}
+                          onPress={() => setShowForgotPassword(false)}
+                        >
+                          <Text style={styles.forgotBackText}>{t('backToLogin')}</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          </ImageBackground>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -697,18 +888,41 @@ export default function HomeScreen() {
   const isPremium = premium.isPremium;
   
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ username: string; email: string } | null>(null);
+  const [logoTapCount, setLogoTapCount] = useState(0);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [totalProductsCount, setTotalProductsCount] = useState<number>(0);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [agentsLoading, setAgentsLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState('');
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
 
-  const updateLastUpdateTime = useCallback(() => {
-    const now = new Date();
-    const minutes = now.getMinutes();
-    setLastUpdate(`${minutes}`);
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userJson = await AsyncStorage.getItem('repsfinder_current_user');
+        if (userJson) {
+          setCurrentUser(JSON.parse(userJson));
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {}
+    };
+    loadUser();
+  }, [showAuthModal]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active') {
+        try {
+          const userJson = await AsyncStorage.getItem('repsfinder_current_user');
+          if (userJson) {
+            setCurrentUser(JSON.parse(userJson));
+          }
+        } catch {}
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
  
@@ -808,7 +1022,7 @@ export default function HomeScreen() {
           return {
             id: agentName,
             name: agentName,
-            logo: logo || `https://via.placeholder.com/150/000000/FFFFFF/?text=${agentName.substring(0, 1)}`,
+            logo: logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(agentName)}&background=1a1a1a&color=00e5b0&size=150`,
             rating,
             costoEnvio,
             diasEnvio,
@@ -865,49 +1079,44 @@ export default function HomeScreen() {
        const allProducts = rows
          .map((row: any) => {
           const cells = row.c;
-          const linkWeidian = cells[7]?.v || '';
-          const agentLinks = generateAgentLinks(linkWeidian);
-          
-          return {
-            foto: cells[0]?.v || '',
-            nombre: cells[1]?.v || '',
-            precio: (() => {
-              const val = cells[2]?.v;
-              if (!val || val === '') return 0;
-              const str = String(val).replace(/[$€£¥,]/g, '').replace(' ', '');
-              const parsed = parseFloat(str);
-              return isNaN(parsed) ? 0 : parsed;
-            })(),
-            categoria: cells[3]?.v || '',
-            activo: cells[4]?.v || '',
-            rating: (() => {
-              const val = cells[5]?.v;
-              if (!val || val === '') return 0;
-              const parsed = parseFloat(String(val).replace(',', '.'));
-              return isNaN(parsed) ? 0 : parsed;
-            })(),
-            ventas: (() => {
-              const val = cells[6]?.v;
-              if (!val || val === '') return 0;
-              const parsed = parseInt(String(val), 10);
-              return isNaN(parsed) ? 0 : parsed;
-            })(),
-            linkWeidian,
-            linkKakobuy: agentLinks?.kakobuy || '',
-            linkUsfans: agentLinks?.usfans || '',
-            linkMulebuy: agentLinks?.mulebuy || '',
-            linkJoyagoo: agentLinks?.joyagoo || '',
-            linkOppbuy: agentLinks?.oppbuy || '',
-            linkLitbuy: agentLinks?.litbuy || '',
-            linkHipobuy: agentLinks?.hipobuy || '',
-            linkSuperbuy: agentLinks?.superbuy || '',
-            linkAcbuy: agentLinks?.acbuy || '',
-            foto1: cells[8]?.v || '',
-            foto2: cells[9]?.v || '',
-            foto3: cells[10]?.v || '',
-            foto4: cells[11]?.v || '',
-            foto5: cells[12]?.v || '',
-            foto6: cells[13]?.v || '',
+           const linkWeidian = cells[8]?.v || '';
+           const agentLinks = generateAgentLinks(linkWeidian);
+           
+           return {
+             foto: cells[9]?.v || '',
+             nombre: cells[1]?.v || '',
+             precio: (() => {
+               const val = cells[4]?.v;
+               if (!val || val === '') return 0;
+               const str = String(val).replace(/[$€£¥,]/g, '').replace(' ', '');
+               const parsed = parseFloat(str);
+               return isNaN(parsed) ? 0 : parsed;
+             })(),
+             categoria: cells[3]?.v || '',
+             activo: cells[6]?.v || '',
+             rating: (() => {
+               const val = cells[5]?.f;
+               if (!val || val === '') return 0;
+               const parsed = parseFloat(String(val).replace(',', '.'));
+               return isNaN(parsed) ? 0 : parsed;
+             })(),
+             ventas: 0,
+             linkWeidian,
+             linkKakobuy: agentLinks?.kakobuy || '',
+             linkUsfans: agentLinks?.usfans || '',
+             linkMulebuy: agentLinks?.mulebuy || '',
+             linkJoyagoo: agentLinks?.joyagoo || '',
+             linkOppbuy: agentLinks?.oppbuy || '',
+             linkLitbuy: agentLinks?.litbuy || '',
+             linkHipobuy: agentLinks?.hipobuy || '',
+             linkSuperbuy: agentLinks?.superbuy || '',
+             linkAcbuy: agentLinks?.acbuy || '',
+             foto1: cells[10]?.v || '',
+             foto2: cells[11]?.v || '',
+             foto3: cells[12]?.v || '',
+             foto4: cells[13]?.v || '',
+             foto5: cells[14]?.v || '',
+             foto6: cells[15]?.v || '',
           };
         })
         .filter((p: Product) =>
@@ -948,7 +1157,6 @@ export default function HomeScreen() {
   useEffect(() => {
     loadFeaturedProducts();
     loadAgents();
-    updateLastUpdateTime();
   }, []);
 
   // Recargar agentes cuando cambie el idioma
@@ -1000,6 +1208,20 @@ export default function HomeScreen() {
     }
   }, [router]);
 
+  const handleLogoTap = useCallback(() => {
+    const newCount = logoTapCount + 1;
+    setLogoTapCount(newCount);
+    if (newCount >= 7) {
+      setLogoTapCount(0);
+      const wasPremium = premium.isPremium;
+      premium.togglePremium();
+      Alert.alert(
+        wasPremium ? 'Modo Free Activado' : '👑 Modo Premium Activado',
+        wasPremium ? 'Has desactivado Premium' : 'Premium desbloqueado para pruebas'
+      );
+    }
+  }, [logoTapCount, premium]);
+
   const handleOpenAuthModal = useCallback(() => {
     setShowAuthModal(true);
   }, []);
@@ -1017,17 +1239,19 @@ export default function HomeScreen() {
         style={[styles.header, { paddingTop: statusBarHeight + 20, paddingBottom: 5 }]}
         imageStyle={styles.headerImage}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.logo}>RepsFinder</Text>
+              <TouchableOpacity onPress={handleLogoTap} activeOpacity={0.7}>
+                <Text style={styles.logo}>RepsFinder</Text>
+              </TouchableOpacity>
                  <TouchableOpacity
     onPress={() => setShowPremiumModal(true)}
                  activeOpacity={0.8}
-                 style={{ marginLeft: 80 }}
-               >
-                 <Text style={{ fontSize: 20 }}>👑</Text>
-               </TouchableOpacity>
+                  style={{ marginLeft: 80 }}
+                >
+                  <Text style={{ fontSize: 20 }}>👑</Text>
+                </TouchableOpacity>
             </View>
             <Text style={styles.tagline}>{t('tagline')}</Text>
           </View>
@@ -1068,14 +1292,7 @@ export default function HomeScreen() {
           >
             <View style={styles.heroContent}>
               <Text style={styles.heroTitle}>{t('heroTitle')}</Text>
-              <View style={styles.trustBadges}>
-                <View style={styles.trustBadge}>
-                  <View style={styles.trustDot} />
-                  <Text style={styles.trustText}>
-                    {t('heroUpdate')} {lastUpdate} {t('heroMin')}
-                  </Text>
-                </View>
-              </View>
+              
             </View>
           </LinearGradient>
         </ImageBackground>
@@ -1116,7 +1333,7 @@ export default function HomeScreen() {
               return Array.isArray(items) ? items.map((item: any, index: number) => {
                 let title = item.title;
                 if (index === 0 && totalProductsCount > 0) {
-                  title = t('discoverCatalogUpdated', { count: totalProductsCount.toLocaleString() });
+                  title = t('discoverCatalogUpdated', { count: totalProductsCount });
                 }
                 return (
                 <AnimatedCard key={item.title} delay={index * 100} style={styles.whyCardWrapper}>
@@ -1183,7 +1400,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>{t('productsTitle')}</Text>
           <Text style={styles.sectionSubtitle}>
             {totalProductsCount > 0 
-              ? t('discoverCatalogAvailable', { count: totalProductsCount.toLocaleString() })
+              ? t('discoverCatalogAvailable', { count: totalProductsCount })
               : t('productsSubtitle')
             }
           </Text>
@@ -1196,7 +1413,7 @@ export default function HomeScreen() {
                   key={`${product.nombre}-${index}`}
                   product={product}
                   index={index}
-                  currency={currency}
+                  currency={currency as Currency}
                   onValidate={validateProduct}
                 />
               ))}
@@ -1223,6 +1440,42 @@ export default function HomeScreen() {
                 <Text style={styles.ctaButtonText}>{t('ctaButton')}</Text>
               </TouchableOpacity>
               <View style={styles.preferencesSection}>
+                <TouchableOpacity
+                  style={styles.userRow}
+                  onPress={() => {
+                    if (currentUser) {
+                      Alert.alert(
+                        currentUser.username,
+                        currentUser.email,
+                        [
+                          { text: t('logout') || 'Cerrar sesión', onPress: async () => {
+                            await AsyncStorage.removeItem('repsfinder_current_user');
+                            setCurrentUser(null);
+                          }},
+                          { text: 'OK' },
+                        ]
+                      );
+                    } else {
+                      setShowAuthModal(true);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.userAvatar, currentUser && styles.userAvatarActive]}>
+                    <Text style={styles.userAvatarText}>
+                      {currentUser ? currentUser.username.charAt(0).toUpperCase() : '?'}
+                    </Text>
+                  </View>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>
+                      {currentUser ? currentUser.username : t('ctaButton')}
+                    </Text>
+                    <Text style={styles.userEmail}>
+                      {currentUser ? currentUser.email : t('ctaSubtitle')}
+                    </Text>
+                  </View>
+                  <Text style={styles.userArrow}>›</Text>
+                </TouchableOpacity>
                 <View style={styles.preferenceRow}>
                   <Text style={styles.preferenceLabel}>{t('prefLanguage')}</Text>
                   <View style={styles.preferenceButtons}>
@@ -1272,7 +1525,7 @@ export default function HomeScreen() {
                </View>
              </View>
            </LinearGradient>
-</ImageBackground>
+ </ImageBackground>
         
         {/* BANNER PREMIUM */}
         <View style={styles.premiumBlockContainer}>
@@ -1291,7 +1544,7 @@ export default function HomeScreen() {
 
           {/* Mini-cards de beneficios */}
           <View style={styles.premiumCardsContainer}>
-            {/* Beneficio 1 */}
+            {/* Beneficio 1 - AI */}
             <View style={styles.premiumCard}>
               <View style={styles.premiumCardIconCircle}>
                 <Text style={styles.premiumCardIcon}>🤖</Text>
@@ -1302,18 +1555,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Beneficio 2 */}
-            <View style={styles.premiumCard}>
-              <View style={styles.premiumCardIconCircle}>
-                <Text style={styles.premiumCardIcon}>👗</Text>
-              </View>
-              <View style={styles.premiumCardTextContainer}>
-                <Text style={styles.premiumCardTitle}>{t('discoverPremiumVirtualTry')}</Text>
-                <Text style={styles.premiumCardDesc}>{t('discoverPremiumVirtualTryDesc')}</Text>
-              </View>
-            </View>
-
-            {/* Beneficio 3 */}
+            {/* Beneficio 2 - Top Products */}
             <View style={styles.premiumCard}>
               <View style={styles.premiumCardIconCircle}>
                 <Text style={styles.premiumCardIcon}>⭐</Text>
@@ -1324,7 +1566,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Beneficio 4 */}
+            {/* Beneficio 3 - Alerts */}
             <View style={styles.premiumCard}>
               <View style={styles.premiumCardIconCircle}>
                 <Text style={styles.premiumCardIcon}>🚨</Text>
@@ -1335,7 +1577,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Beneficio 5 */}
+            {/* Beneficio 4 - Stores */}
             <View style={styles.premiumCard}>
               <View style={styles.premiumCardIconCircle}>
                 <Text style={styles.premiumCardIcon}>🏪</Text>
@@ -1346,7 +1588,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Beneficio 6 */}
+            {/* Beneficio 5 - Favorites */}
             <View style={styles.premiumCard}>
               <View style={styles.premiumCardIconCircle}>
                 <Text style={styles.premiumCardIcon}>❤️</Text>
@@ -1363,7 +1605,7 @@ export default function HomeScreen() {
             <Text style={styles.premiumPriceText}>{t('discoverPremiumPrice')}</Text>
           </View>
 
-            {/* Botón principal */}
+          {/* Botón principal */}
   <TouchableOpacity
     style={styles.premiumMainButton}
       onPress={() => router.push('/premium')}
@@ -1378,17 +1620,7 @@ export default function HomeScreen() {
                 <Text style={styles.premiumMainButtonText}>✨ {t('discoverPremiumUnlock')}</Text>
              </LinearGradient>
            </TouchableOpacity>
-           
-           {/* BOTÓN LEGAL - DEBAJO DEL BANNER */}
-           <TouchableOpacity
-             style={styles.legalButton}
-             onPress={goToLegal}
-             activeOpacity={0.8}
-           >
-             <Text style={styles.legalButtonText}>{t('legalButton')}</Text>
-             <Text style={styles.legalButtonArrow}>→</Text>
-           </TouchableOpacity>
-         </View>
+          </View>
         
         {/* FOOTER */}
         <View style={styles.footer}>
@@ -1408,7 +1640,7 @@ export default function HomeScreen() {
           onShowTopProducts={() => router.push('/(tabs)/validar?topProducts=true')}
           onManageSubscription={() => router.push('/premium')}
          />
-       </View>
+        </View>
     );
   }
 
@@ -1481,7 +1713,7 @@ const styles = StyleSheet.create({
   heroGradient: {
     flex: 1,
     justifyContent: 'flex-end',
-    paddingBottom: 50,
+    paddingBottom: 110,
     paddingHorizontal: 20
   },
   heroContent: {},
@@ -1490,6 +1722,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: COLORS.TEXT_PRIMARY,
     lineHeight: 38,
+    marginTop: 8,
     textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 12
@@ -2009,6 +2242,52 @@ const styles = StyleSheet.create({
   prefButtonTextActive: {
     color: COLORS.BACKGROUND
   },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.CARD_BG,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.BORDER,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  userAvatarActive: {
+    backgroundColor: COLORS.PRIMARY,
+  },
+  userAvatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  userInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  userName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.TEXT_PRIMARY,
+  },
+  userEmail: {
+    fontSize: 12,
+    color: COLORS.TEXT_TERTIARY,
+    marginTop: 2,
+  },
+  userArrow: {
+    fontSize: 22,
+    color: COLORS.TEXT_TERTIARY,
+    fontWeight: '300',
+  },
   legalButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -2042,7 +2321,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end'
   },
   modalBackdrop: {
     position: 'absolute',
@@ -2053,7 +2331,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.OVERLAY
   },
   modalBox: {
-    maxHeight: '85%',
+    flex: 1,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
@@ -2063,6 +2341,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   modalOverlayInner: {
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -2084,7 +2363,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: COLORS.TEXT_SECONDARY
   },
-  modalContent: { padding: 20, paddingBottom: 60 },
+  modalContent: { padding: 20, paddingBottom: 40 },
   tabContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -2162,6 +2441,90 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 18
+  },
+  dividerRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1, height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  dividerText: {
+    fontSize: 12, color: COLORS.TEXT_TERTIARY,
+    marginHorizontal: 12,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  googleIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  googleIconG: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#000',
+  },
+  guestButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    marginTop: 10,
+  },
+  guestButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 4,
+  },
+  rememberCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rememberCheckboxActive: {
+    backgroundColor: COLORS.PRIMARY,
+    borderColor: COLORS.PRIMARY,
+  },
+  rememberCheckMark: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#000',
+  },
+  rememberText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
   },
   premiumBannerContainer: {
     marginHorizontal: 20,
@@ -2344,5 +2707,83 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingRight: 50,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 14,
+    height: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  eyeIcon: {
+    fontSize: 20,
+  },
+  forgotRow: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+  },
+  forgotText: {
+    fontSize: 13,
+    color: COLORS.PRIMARY,
+    fontWeight: '600',
+  },
+  forgotOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  forgotContainer: {
+    backgroundColor: COLORS.CARD_BG,
+    borderRadius: 20,
+    padding: 24,
+  },
+  forgotTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  forgotDesc: {
+    fontSize: 14,
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  forgotBackBtn: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  forgotBackText: {
+    fontSize: 14,
+    color: COLORS.PRIMARY,
+    fontWeight: '600',
+  },
+  resetSentIcon: {
+    fontSize: 48,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  resetSentText: {
+    fontSize: 15,
+    color: COLORS.TEXT_SECONDARY,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 8,
   },
 });

@@ -1,37 +1,22 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, Text, Alert, View, Dimensions, Platform, PanResponder } from 'react-native';
+import { StyleSheet, Text, View, Dimensions, Platform, PanResponder } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePremium } from '../context/PremiumContext';
 import { router } from 'expo-router';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BUTTON_SIZE = 60;
 
 export function AIChatFAB() {
-  const { isPremium } = usePremium();
-  
   const [position, setPosition] = useState({
     x: SCREEN_WIDTH - BUTTON_SIZE - 20,
     y: Platform.OS === 'android' ? 200 : 150,
   });
-  
+   
   const isDragging = useRef(false);
   const dragStartTime = useRef(0);
 
-  const handlePress = () => {
+const handlePress = () => {
     if (isDragging.current) return;
-    
-    if (!isPremium) {
-      Alert.alert(
-        'Función Premium',
-        'El asistente IA es exclusivo para usuarios Premium. ¿Quieres desbloquear el acceso completo?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ver planes', onPress: () => router.push('/premium') },
-        ]
-      );
-      return;
-    }
     router.push('/chat');
   };
 
@@ -96,7 +81,6 @@ export function AIChatFAB() {
         style={styles.button}
       >
         <Text style={styles.icon}>🤖</Text>
-        {!isPremium && <Text style={styles.proBadge}>PRO</Text>}
       </LinearGradient>
     </View>
   );

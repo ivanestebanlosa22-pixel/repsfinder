@@ -40,17 +40,17 @@ const mockProducts = [
     productId: productIds.PREMIUM_MONTHLY,
     title: 'Premium Mensual',
     description: 'Acceso Premium por 1 mes',
-    price: '0.99',
+    price: '4.99',
     currency: 'EUR',
-    localizedPrice: '0.99€'
+    localizedPrice: '4,99€'
   },
   {
     productId: productIds.PREMIUM_YEARLY,
     title: 'Premium Anual',
     description: 'Acceso Premium por 1 año',
-    price: '4.99',
+    price: '29.99',
     currency: 'EUR',
-    localizedPrice: '4.99€'
+    localizedPrice: '29,99€'
   },
   {
     productId: productIds.CREDITS_20,
@@ -58,7 +58,7 @@ const mockProducts = [
     description: '20 créditos para usar en la app',
     price: '0.99',
     currency: 'EUR',
-    localizedPrice: '0.99€'
+    localizedPrice: '0,99€'
   },
   {
     productId: productIds.CREDITS_50,
@@ -66,7 +66,7 @@ const mockProducts = [
     description: '50 créditos para usar en la app',
     price: '1.99',
     currency: 'EUR',
-    localizedPrice: '1.99€'
+    localizedPrice: '1,99€'
   },
   {
     productId: productIds.CREDITS_120,
@@ -74,7 +74,7 @@ const mockProducts = [
     description: '120 créditos para usar en la app',
     price: '3.99',
     currency: 'EUR',
-    localizedPrice: '3.99€'
+    localizedPrice: '3,99€'
   }
 ];
 

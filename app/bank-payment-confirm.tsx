@@ -17,13 +17,13 @@ import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { usePremium } from './context/PremiumContext';
+import { usePremium } from '../src/context/PremiumContext';
 import { useTranslation } from 'react-i18next';
-import { logger } from './utils/logger';
+import { logger } from '../src/utils/logger';
 import { 
   checkBankPaymentStatus, 
   notifyBankPaymentSent 
-} from './utils/payments';
+} from '../src/utils/payments';
 
 // Colores de la app
 const COLORS = {

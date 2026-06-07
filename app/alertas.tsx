@@ -13,13 +13,14 @@ import {
   StatusBar,
   ImageBackground,
   Dimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { usePremium } from './context/PremiumContext';
-import { useSmartAlerts, AlertType, ALERT_TYPE_LABELS } from './context/SmartAlertsContext';
-import PaywallModal from './components/premium/PaywallModal';
+import { usePremium } from '../src/context/PremiumContext';
+import { useSmartAlerts, AlertType, ALERT_TYPE_LABELS } from '../src/context/SmartAlertsContext';
+import PaywallModal from '../src/components/premium/PaywallModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 1 : 44;
@@ -187,7 +188,7 @@ export default function AlertasScreen() {
         <TouchableOpacity 
           style={styles.createButton}
           onPress={() => {
-            if (!isPremium && !canCreateAlert()) {
+            if (!isPremium) {
               setShowPaywall(true);
             } else {
               setShowCreateModal(true);
@@ -292,7 +293,10 @@ export default function AlertasScreen() {
         animationType="slide"
         onRequestClose={() => setShowCreateModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -399,7 +403,7 @@ export default function AlertasScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} />

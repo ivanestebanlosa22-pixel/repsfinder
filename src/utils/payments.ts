@@ -73,9 +73,9 @@ export const getFormattedPrice = async (productId: string): Promise<string> => {
     // Valores predeterminados si no se puede obtener el precio real
     switch (productId) {
       case PRODUCT_IDS.PREMIUM_MONTHLY:
-        return '0.99€';
-      case PRODUCT_IDS.PREMIUM_YEARLY:
         return '4.99€';
+      case PRODUCT_IDS.PREMIUM_YEARLY:
+        return '29.99€';
       case PRODUCT_IDS.CREDITS_20:
         return '0.99€';
       case PRODUCT_IDS.CREDITS_50:
@@ -91,9 +91,9 @@ export const getFormattedPrice = async (productId: string): Promise<string> => {
     // Valores por defecto en caso de error
     switch (productId) {
       case PRODUCT_IDS.PREMIUM_MONTHLY:
-        return '0.99€';
-      case PRODUCT_IDS.PREMIUM_YEARLY:
         return '4.99€';
+      case PRODUCT_IDS.PREMIUM_YEARLY:
+        return '29.99€';
       case PRODUCT_IDS.CREDITS_20:
         return '0.99€';
       case PRODUCT_IDS.CREDITS_50:

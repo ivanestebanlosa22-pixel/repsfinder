@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
   import {
     View,
@@ -17,9 +17,10 @@ import { useRouter } from 'expo-router';
   } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
  import { useTranslation } from 'react-i18next';
-import { usePremium } from '../context/PremiumContext';
-import PaywallModal from '../components/premium/PaywallModal';
-import { logger } from '../utils/logger';
+import { usePremium } from '../../src/context/PremiumContext';
+import PaywallModal from '../../src/components/premium/PaywallModal';
+import { logger } from '../../src/utils/logger';
+import * as Sentry from '@sentry/react-native';
 
 
 const HEADER_BG = 'https://www.shutterstock.com/image-photo/front-cargo-container-ship-ocean-600nw-2659440041.jpg';
@@ -135,8 +136,7 @@ const getStoreStyle = (category: string, name: string): { emoji: string; bg: str
 };
 
  export default function TopStoresScreen() {
-   const { subscription, canAccessAllStores } = usePremium();
-   const isPremium = canAccessAllStores();
+   const { isPremium } = usePremium();
    const { t, i18n } = useTranslation();
    const router = useRouter();
    const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -148,14 +148,6 @@ const getStoreStyle = (category: string, name: string): { emoji: string; bg: str
    const [loading, setLoading] = useState(true);
    const [error, setError] = useState<string | null>(null);
    const [showPaywall, setShowPaywall] = useState(false);
-
-   const visibleSellers = useMemo(() => {
-     if (canAccessAllStores()) {
-       return sellers;
-     }
-     // Free users see only first 3 sellers
-     return sellers.slice(0, 3);
-   }, [sellers, canAccessAllStores]);
 
   const loadData = async () => {
     try {
@@ -241,6 +233,7 @@ const getStoreStyle = (category: string, name: string): { emoji: string; bg: str
       setSellers(data);
       setLoading(false);
     } catch (error) {
+      Sentry.captureException(error as Error);
       logger.error('Error loading data:', error);
       setError(error instanceof Error ? error.message : 'Error desconocido');
       setLoading(false);
@@ -333,7 +326,7 @@ const getStoreStyle = (category: string, name: string): { emoji: string; bg: str
             </View>
           )}
 
-         {!loading && !error && visibleSellers.length === 0 && (
+         {!loading && !error && sellers.length === 0 && (
            <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>{t('storesNoStores')}</Text>
            </View>
@@ -390,7 +383,6 @@ const getStoreStyle = (category: string, name: string): { emoji: string; bg: str
                       <View style={styles.ratingRow}>
                         <Text style={styles.star}>⭐</Text>
                         <Text style={styles.ratingText}>{seller.rating}</Text>
-                        <Text style={styles.reviewsText}>({seller.reviews} {t('reviews')})</Text>
                       </View>
                       <LinearGradient
                         colors={seller.badgeGradient}
@@ -401,42 +393,53 @@ const getStoreStyle = (category: string, name: string): { emoji: string; bg: str
                     </View>
                   </View>
 
-                  <View style={styles.categoryContainer}>
-                    <Text style={styles.categoryText}>{category}</Text>
-                    <Text style={styles.noteText}>{note}</Text>
-                  </View>
+<View style={styles.categoryContainer}>
+                     <Text style={styles.categoryText}>{category}</Text>
+                     <Text style={styles.noteText}>{note}</Text>
+                   </View>
 
-                  <View style={styles.statsGrid}>
-                    <View style={styles.statBox}>
-                      <LinearGradient
-                        colors={[COLORS.GLASS_BG, COLORS.CARD_BG_DARK]}
-                        style={styles.statGradient}
-                      >
-                        <Text style={styles.statLabel}>{t('trustScore')}</Text>
-                        <Text style={styles.statValue}>{seller.trustScore}/10</Text>
-                      </LinearGradient>
-                    </View>
-                    <View style={styles.statBox}>
-                      <LinearGradient
-                        colors={[COLORS.GLASS_BG, COLORS.CARD_BG_DARK]}
-                        style={styles.statGradient}
-                      >
-                        <Text style={styles.statLabel}>{t('priceRange')}</Text>
-                        <Text style={styles.statValue}>{seller.priceRange}</Text>
-                      </LinearGradient>
-                    </View>
-                  </View>
-
-                   <View style={styles.specialtiesSection}>
-                     <Text style={styles.sectionTitle}>{t('specialties')}</Text>
-                     <View style={styles.tagsContainer}>
-                        {specialties.map((spec: string, idx: number) => (
-                         <View key={`${seller.id}-spec-${idx}`} style={styles.tag}>
-                           <Text style={styles.tagText}>{spec}</Text>
-                         </View>
-                       ))}
+                   {isPremium ? (
+                   <>
+                   <View style={styles.statsGrid}>
+                     <View style={styles.statBox}>
+                       <LinearGradient
+                         colors={[COLORS.GLASS_BG, COLORS.CARD_BG_DARK]}
+                         style={styles.statGradient}
+                       >
+                         <Text style={styles.statLabel}>{t('trustScore')}</Text>
+                         <Text style={styles.statValue}>{seller.trustScore}/10</Text>
+                       </LinearGradient>
+                     </View>
+                     <View style={styles.statBox}>
+                       <LinearGradient
+                         colors={[COLORS.GLASS_BG, COLORS.CARD_BG_DARK]}
+                         style={styles.statGradient}
+                       >
+                         <Text style={styles.statLabel}>{t('priceRange')}</Text>
+                         <Text style={styles.statValue}>{seller.priceRange}</Text>
+                       </LinearGradient>
                      </View>
                    </View>
+
+                    <View style={styles.specialtiesSection}>
+                      <Text style={styles.sectionTitle}>{t('specialties')}</Text>
+                      <View style={styles.tagsContainer}>
+                         {specialties.map((spec: string, idx: number) => (
+                          <View key={`${seller.id}-spec-${idx}`} style={styles.tag}>
+                            <Text style={styles.tagText}>{spec}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                    </>
+                    ) : (
+                    <TouchableOpacity onPress={() => setShowPaywall(true)} activeOpacity={0.7}>
+                      <View style={styles.lockedOverlay}>
+                        <Text style={styles.lockedIcon}>🔒</Text>
+                        <Text style={styles.lockedText}>{t('premiumRequired') || 'Premium'}</Text>
+                      </View>
+                    </TouchableOpacity>
+                    )}
 
                    {!isExpanded && isPremium && (
                      <View style={styles.expandHint}>
@@ -524,17 +527,6 @@ const getStoreStyle = (category: string, name: string): { emoji: string; bg: str
                     )}
                   </LinearGradient>
                   
-                  {!isPremium && (
-                    <TouchableOpacity 
-                      style={styles.premiumUpgradeBanner}
-                      onPress={() => setShowPaywall(true)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.premiumUpgradeIcon}>👑</Text>
-                      <Text style={styles.premiumUpgradeText}>Hazte Premium para ver más detalles</Text>
-                      <Text style={styles.premiumUpgradeArrow}>→</Text>
-                    </TouchableOpacity>
-                  )}
                 </TouchableOpacity>
              );
            })}
@@ -821,5 +813,25 @@ const styles = StyleSheet.create({
     expandHintIcon: {
       color: COLORS.TEXT_TERTIARY,
       fontSize: 10,
+    },
+    lockedOverlay: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      marginTop: 8,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255, 51, 102, 0.1)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 51, 102, 0.3)',
+    },
+    lockedIcon: {
+      fontSize: 18,
+      marginRight: 8,
+    },
+    lockedText: {
+      color: '#FF3366',
+      fontSize: 14,
+      fontWeight: '700',
     },
   });

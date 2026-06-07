@@ -11,14 +11,16 @@ import {
   TextInput,
   Modal,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useSmartAlerts, AlertType, ALERT_TYPE_LABELS } from './context/SmartAlertsContext';
-import { usePremium } from './context/PremiumContext';
-import { AlertLimitBanner } from './components/premium/LimitBanners';
-import PaywallModal from './components/premium/PaywallModal';
+import { useSmartAlerts, AlertType, ALERT_TYPE_LABELS } from '../src/context/SmartAlertsContext';
+import { usePremium } from '../src/context/PremiumContext';
+import { AlertLimitBanner } from '../src/components/premium/LimitBanners';
+import PaywallModal from '../src/components/premium/PaywallModal';
 
 export default function AlertsScreen() {
   const router = useRouter();
@@ -50,6 +52,11 @@ export default function AlertsScreen() {
   const remainingAlerts = getRemainingAlerts();
 
   const handleCreateAlert = async () => {
+    if (!isPremium) {
+      setShowPaywall(true);
+      return;
+    }
+
     if (!canCreateAlert()) {
       setShowPaywall(true);
       return;
@@ -92,7 +99,7 @@ export default function AlertsScreen() {
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
-            if (canCreateAlert()) {
+            if (isPremium) {
               setShowCreateModal(true);
             } else {
               setShowPaywall(true);
@@ -200,7 +207,10 @@ export default function AlertsScreen() {
         animationType="slide"
         onRequestClose={() => setShowCreateModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('createAlertBtn')}</Text>
@@ -287,7 +297,7 @@ export default function AlertsScreen() {
               <View style={{ height: 30 }} />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <PaywallModal
