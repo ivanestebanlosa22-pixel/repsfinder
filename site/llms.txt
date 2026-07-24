@@ -1,0 +1,15 @@
+# RepsFinder
+
+> RepsFinder is an informational website that compares verified replica shopping agents, explains
+> how to validate products and sellers before buying, and lists trusted Weidian stores by category.
+> RepsFinder does not sell products — all purchases happen directly on the agent's own website.
+
+## Pages
+
+- [Discover](https://www.qualityrepsfinder.com/index.html): Home page — overview of verified purchase agents and featured products from our catalog.
+- [Agents](https://www.qualityrepsfinder.com/agents.html): Full comparison of verified replica purchase agents by rating, shipping time, QC success rate and commission.
+- [Verify](https://www.qualityrepsfinder.com/verify.html): How RepsFinder rates and validates products before purchase, with worked examples of buying the same product from different agents.
+- [Top Stores](https://www.qualityrepsfinder.com/top-stores.html): The best verified Weidian stores by category, with trust score, specialties and pros/cons.
+- [Learn](https://www.qualityrepsfinder.com/learn.html): A free step-by-step guide to buying replicas safely from China, including exclusive agent bonus codes and FAQ.
+- [Privacy Policy](https://www.qualityrepsfinder.com/privacy.html): What limited technical data this site processes.
+- [Terms & Conditions](https://www.qualityrepsfinder.com/terms.html): Terms of use, affiliate disclosure, and legal notice on replica products.
