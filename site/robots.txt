@@ -1,0 +1,53 @@
+User-agent: *
+Allow: /
+
+# --- OpenAI ---
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+
+# --- Anthropic ---
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: Claude-User
+Allow: /
+
+# --- Perplexity ---
+User-agent: PerplexityBot
+Allow: /
+User-agent: Perplexity-User
+Allow: /
+
+# --- Tokens de control (no son crawlers nuevos, deciden si el rastreo ya hecho por Googlebot/Applebot se puede usar para entrenar IA) ---
+User-agent: Google-Extended
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+
+# --- Otros asistentes con función de recuperación en tiempo real ---
+User-agent: Bingbot
+Allow: /
+User-agent: DuckAssistBot
+Allow: /
+User-agent: Amazonbot
+Allow: /
+
+# --- Entrenamiento masivo — política abierta, no hay contenido propietario que proteger aquí ---
+User-agent: CCBot
+Allow: /
+User-agent: Meta-ExternalAgent
+Allow: /
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+# --- Bytespider incumple robots.txt en la práctica según múltiples fuentes (2026); el bloqueo es más
+# simbólico que efectivo, pero se deja como primera línea de defensa ---
+User-agent: Bytespider
+Disallow: /
+
+Sitemap: https://www.qualityrepsfinder.com/sitemap.xml
