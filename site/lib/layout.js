@@ -4,12 +4,17 @@ const SITE_NAME = 'RepsFinder';
 const SITE_URL = 'https://www.qualityrepsfinder.com';
 const SITE_TAGLINE = 'Smart shopping. No surprises. Guaranteed.';
 
+// Rutas relativas (sin "/" inicial) a propósito: las 7 páginas viven todas planas en la raíz de
+// site/, así que un enlace relativo funciona igual si Iván abre el HTML haciendo doble clic
+// (file://) que si el sitio está desplegado en la raíz del dominio. Un href="/index.html" con "/"
+// inicial se resuelve contra la raíz del disco en file://, no contra la carpeta del sitio, y rompe
+// la navegación y el CSS al previsualizar localmente — es justo lo que pasó en la primera versión.
 const NAV_ITEMS = [
-  { href: '/index.html', label: 'Discover', slug: 'index' },
-  { href: '/agents.html', label: 'Agents', slug: 'agents' },
-  { href: '/verify.html', label: 'Verify', slug: 'verify' },
-  { href: '/top-stores.html', label: 'Top Stores', slug: 'top-stores' },
-  { href: '/learn.html', label: 'Learn', slug: 'learn' },
+  { href: 'index.html', label: 'Discover', slug: 'index' },
+  { href: 'agents.html', label: 'Agents', slug: 'agents' },
+  { href: 'verify.html', label: 'Verify', slug: 'verify' },
+  { href: 'top-stores.html', label: 'Top Stores', slug: 'top-stores' },
+  { href: 'learn.html', label: 'Learn', slug: 'learn' },
 ];
 
 function esc(str) {
@@ -31,7 +36,7 @@ function header(activeSlug) {
     <div class="site-header__bar"></div>
     <div class="site-header__inner">
       <div>
-        <a href="/index.html" style="display:flex;align-items:baseline;gap:10px;">
+        <a href="index.html" style="display:flex;align-items:baseline;gap:10px;">
           <span class="logo">RepsFinder</span>
           <span class="tagline">${esc(SITE_TAGLINE)}</span>
         </a>
@@ -64,16 +69,16 @@ function footer() {
         </div>
         <div class="site-footer__links">
           <strong style="color:#fff;font-size:13px;margin-bottom:4px;">Site</strong>
-          <a href="/index.html">Discover</a>
-          <a href="/agents.html">Agents</a>
-          <a href="/verify.html">Verify</a>
-          <a href="/top-stores.html">Top Stores</a>
-          <a href="/learn.html">Learn</a>
+          <a href="index.html">Discover</a>
+          <a href="agents.html">Agents</a>
+          <a href="verify.html">Verify</a>
+          <a href="top-stores.html">Top Stores</a>
+          <a href="learn.html">Learn</a>
         </div>
         <div class="site-footer__links">
           <strong style="color:#fff;font-size:13px;margin-bottom:4px;">Legal</strong>
-          <a href="/privacy.html">Privacy Policy</a>
-          <a href="/terms.html">Terms &amp; Conditions</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms &amp; Conditions</a>
           <a href="mailto:legal@repsfinder.com">legal@repsfinder.com</a>
         </div>
       </div>
@@ -150,7 +155,7 @@ function page({ slug, title, description, canonicalPath, breadcrumbItems, bodyHt
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="${esc(title)}" />
 <meta name="twitter:description" content="${esc(description)}" />
-<link rel="stylesheet" href="/assets/css/style.css" />
+<link rel="stylesheet" href="assets/css/style.css" />
 ${ld}
 </head>
 <body>

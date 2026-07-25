@@ -100,7 +100,7 @@ function build(topTiendasRows) {
     description: 'The best verified Weidian stores by category — trust score, specialties, pros and cons, checked by our team before being listed.',
     canonicalPath: '/top-stores.html',
     breadcrumbItems: [
-      { label: 'Home', href: '/index.html' },
+      { label: 'Home', href: 'index.html' },
       { label: 'Top Stores' },
     ],
     bodyHtml: body,

@@ -117,7 +117,7 @@ function build(mainRows, validarRows) {
     description: 'Learn how RepsFinder rates and validates replica products, and how to buy the same product from any of our verified purchase agents.',
     canonicalPath: '/verify.html',
     breadcrumbItems: [
-      { label: 'Home', href: '/index.html' },
+      { label: 'Home', href: 'index.html' },
       { label: 'Verify' },
     ],
     bodyHtml: body,

@@ -115,7 +115,7 @@ function renderBonusCard(b) {
     <p style="color:var(--primary);font-weight:900;font-size:15px;margin-bottom:6px;">${esc(b.bonus)}</p>
     <p style="margin-bottom:10px;">${esc(b.desc)}</p>
     <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;">Your code: <strong style="color:#fff;">${esc(b.code)}</strong></p>
-    <a class="btn btn--outline btn--block" href="/agents.html#${esc(b.display.toLowerCase())}">See full details &amp; register →</a>
+    <a class="btn btn--outline btn--block" href="agents.html#${esc(b.display.toLowerCase())}">See full details &amp; register →</a>
   </div>`;
 }
 
@@ -174,7 +174,7 @@ function build() {
     <div class="cta-box">
       <h2>🎉 Ready to start!</h2>
       <p>You have everything you need to make your first purchase.</p>
-      <a class="btn btn--primary" href="/verify.html" style="margin-top:14px;">View verified products</a>
+      <a class="btn btn--primary" href="verify.html" style="margin-top:14px;">View verified products</a>
     </div>
   </section>
 </main>`;
@@ -185,7 +185,7 @@ function build() {
     description: 'A free, complete guide to buying quality replicas from China: how to find verified products, choose a purchase agent, request QC photos and get your order home safely.',
     canonicalPath: '/learn.html',
     breadcrumbItems: [
-      { label: 'Home', href: '/index.html' },
+      { label: 'Home', href: 'index.html' },
       { label: 'Learn' },
     ],
     bodyHtml: body,

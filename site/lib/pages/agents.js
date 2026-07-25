@@ -77,7 +77,7 @@ function build(agentsRows) {
     description: 'Compare verified replica purchase agents by rating, shipping time, QC success rate and commission — choose the right one and register for free.',
     canonicalPath: '/agents.html',
     breadcrumbItems: [
-      { label: 'Home', href: '/index.html' },
+      { label: 'Home', href: 'index.html' },
       { label: 'Agents' },
     ],
     bodyHtml: body,

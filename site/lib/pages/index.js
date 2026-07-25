@@ -42,13 +42,13 @@ function renderProductCard(p) {
       <span class="badge" style="margin-bottom:8px;">${esc(p.Categoria || '')}</span>
       <h3 style="font-size:14px;margin:0 0 6px;">${esc(p.nombre)}</h3>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px;">${rating}${rating && price ? ' · ' : ''}${price}</p>
-      <a class="btn btn--outline btn--block" href="/verify.html">Validate this product</a>
+      <a class="btn btn--outline btn--block" href="verify.html">Validate this product</a>
     </div>
   </div>`;
 }
 
 function renderAgentChip(agent) {
-  return `<a class="card card--glass" style="display:flex;align-items:center;gap:12px;text-decoration:none;" href="/agents.html#${esc(agent.display.toLowerCase())}">
+  return `<a class="card card--glass" style="display:flex;align-items:center;gap:12px;text-decoration:none;" href="agents.html#${esc(agent.display.toLowerCase())}">
     ${agent.logo ? `<img src="${esc(agent.logo)}" alt="${esc(agent.display)}" style="width:36px;height:36px;border-radius:8px;object-fit:contain;background:#111;flex-shrink:0;" />` : ''}
     <div>
       <strong style="display:block;font-size:14px;">${esc(agent.display)}</strong>
@@ -83,8 +83,8 @@ function build(mainRows, agentsRows, agentsIndexRows) {
     <h1>Find the best replicas of sneakers, clothing and accessories, buying directly from factories in China.</h1>
     <p class="hero__subtitle">Smart shopping. No surprises. Guaranteed.</p>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px;">
-      <a class="btn btn--primary" href="/agents.html">Compare agents</a>
-      <a class="btn btn--outline" href="/learn.html">Learn how it works</a>
+      <a class="btn btn--primary" href="agents.html">Compare agents</a>
+      <a class="btn btn--outline" href="learn.html">Learn how it works</a>
     </div>
   </div>
 
@@ -104,7 +104,7 @@ function build(mainRows, agentsRows, agentsIndexRows) {
     <div class="grid grid--3">
       ${widgetAgents.map(renderAgentChip).join('\n      ')}
     </div>
-    <div class="text-center" style="margin-top:20px;"><a class="btn btn--outline" href="/agents.html">See full comparison →</a></div>
+    <div class="text-center" style="margin-top:20px;"><a class="btn btn--outline" href="agents.html">See full comparison →</a></div>
   </section>` : ''}
 
   <section class="container">
@@ -129,7 +129,7 @@ function build(mainRows, agentsRows, agentsIndexRows) {
     <div class="cta-box">
       <h2>Ready to start saving on your purchases?</h2>
       <p>Compare verified agents, learn how to validate products, and buy directly with total confidence.</p>
-      <a class="btn btn--primary" href="/agents.html" style="margin-top:14px;">Compare verified agents</a>
+      <a class="btn btn--primary" href="agents.html" style="margin-top:14px;">Compare verified agents</a>
     </div>
   </section>
 </main>`;

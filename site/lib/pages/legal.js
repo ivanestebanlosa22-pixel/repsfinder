@@ -74,7 +74,7 @@ function buildPrivacy() {
     description: 'RepsFinder privacy policy: what limited technical data this informational website processes, and what it never collects — no accounts, no passwords, no tracking cookies.',
     canonicalPath: '/privacy.html',
     breadcrumbItems: [
-      { label: 'Home', href: '/index.html' },
+      { label: 'Home', href: 'index.html' },
       { label: 'Privacy Policy' },
     ],
     bodyHtml: body,
@@ -226,7 +226,7 @@ function buildTerms() {
     description: 'RepsFinder terms and conditions: what this informational website is, how affiliate links work, and the legal notice on replica products.',
     canonicalPath: '/terms.html',
     breadcrumbItems: [
-      { label: 'Home', href: '/index.html' },
+      { label: 'Home', href: 'index.html' },
       { label: 'Terms & Conditions' },
     ],
     bodyHtml: body,
