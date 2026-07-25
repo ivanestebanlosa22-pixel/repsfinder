@@ -2,6 +2,7 @@
 
 const { esc, page, organizationJsonLd, websiteJsonLd } = require('../layout');
 const { loadValidatedAgents } = require('../agent-data');
+const { normalizeName, isVisible } = require('../agents');
 
 function isActive(v) {
   return String(v || '').trim().toUpperCase() === 'SI';
@@ -56,9 +57,23 @@ function renderAgentChip(agent) {
   </a>`;
 }
 
-function build(mainRows, agentsRows) {
+// AGENTS INDEX es la curaduría real de qué agentes muestra la home (columna "mostrar" propia,
+// independiente de agents.csv): por ejemplo Kakobuy/Allchinabuy/Hipobuy están validados y se
+// publican en agents.html, pero AGENTS INDEX real trae mostrar=FALSE para ellos en la home. Si no
+// se aporta este CSV, se hace fallback a los primeros N agentes validados por rating.
+function homeWidgetAgents(agents, agentsIndexRows, limit) {
+  if (!agentsIndexRows || !agentsIndexRows.length) return agents.slice(0, limit);
+  const visibleNames = new Set(
+    agentsIndexRows.filter((r) => isVisible(r.mostrar)).map((r) => normalizeName(r.agente))
+  );
+  const curated = agents.filter((a) => visibleNames.has(normalizeName(a.display)));
+  return curated.length ? curated.slice(0, limit) : agents.slice(0, limit);
+}
+
+function build(mainRows, agentsRows, agentsIndexRows) {
   const products = pickFeaturedProducts(mainRows, 10);
   const { agents } = loadValidatedAgents(agentsRows);
+  const widgetAgents = homeWidgetAgents(agents, agentsIndexRows, 6);
   const totalVisibleProducts = mainRows.filter((r) => isActive(r.activo) && r['foto portada'] && r.nombre).length;
 
   const body = `
@@ -83,11 +98,11 @@ function build(mainRows, agentsRows) {
     </div>
   </section>
 
-  ${agents.length ? `<section class="container">
+  ${widgetAgents.length ? `<section class="container">
     <h2>Verified Purchase Agents</h2>
     <p class="section__subtitle">Complete comparison • Community data</p>
     <div class="grid grid--3">
-      ${agents.slice(0, 6).map(renderAgentChip).join('\n      ')}
+      ${widgetAgents.map(renderAgentChip).join('\n      ')}
     </div>
     <div class="text-center" style="margin-top:20px;"><a class="btn btn--outline" href="/agents.html">See full comparison →</a></div>
   </section>` : ''}

@@ -1,20 +1,32 @@
 'use strict';
 
-// Parser CSV mínimo, sin dependencias, compatible con el export estándar de Google Sheets:
-// separador coma, campos entre comillas dobles cuando contienen comas/comillas/saltos de línea,
-// comillas internas escapadas duplicándolas (""), líneas terminadas en \r\n o \n.
-function parseCSV(text) {
+// Parser CSV/TSV sin dependencias, compatible con los exports reales de Google Sheets:
+// - CSV (coma): RFC4180 — campos entre comillas dobles cuando contienen comas/comillas/saltos de
+//   línea, comillas internas escapadas duplicándolas (""). Google Sheets → Archivo → Descargar → CSV.
+// - TSV (tabulador): sin comillas de escape — un tabulador o salto de línea literal SIEMPRE separa
+//   campos/filas, y un `"` dentro de una celda es texto literal (nunca inicia una cita). Google
+//   Sheets → Archivo → Descargar → TSV, o pegar un rango copiado desde Sheets.
+// El delimitador se autodetecta por archivo: si la primera línea contiene un tabulador, se trata
+// como TSV; si no, como CSV.
+
+function detectDelimiter(text) {
+  const firstLine = text.split(/\r?\n/, 1)[0] || '';
+  return firstLine.includes('\t') ? '\t' : ',';
+}
+
+function parseDelimited(text, delimiter) {
   const rows = [];
   let row = [];
   let field = '';
   let inQuotes = false;
+  const useQuotes = delimiter === ','; // en TSV las comillas son texto literal, nunca escape
   const src = text.replace(/^﻿/, ''); // strip BOM si lo trae el export
 
   for (let i = 0; i < src.length; i++) {
     const c = src[i];
     const next = src[i + 1];
 
-    if (inQuotes) {
+    if (useQuotes && inQuotes) {
       if (c === '"' && next === '"') {
         field += '"';
         i++;
@@ -26,9 +38,9 @@ function parseCSV(text) {
       continue;
     }
 
-    if (c === '"') {
+    if (useQuotes && c === '"') {
       inQuotes = true;
-    } else if (c === ',') {
+    } else if (c === delimiter) {
       row.push(field);
       field = '';
     } else if (c === '\r') {
@@ -51,9 +63,13 @@ function parseCSV(text) {
   return rows.filter((r) => r.some((cell) => cell.trim() !== ''));
 }
 
-// Convierte filas CSV (primera fila = cabecera) en objetos { columna: valor }
-function csvToObjects(text) {
-  const rows = parseCSV(text);
+function parseCSV(text, delimiter) {
+  return parseDelimited(text, delimiter || detectDelimiter(text));
+}
+
+// Convierte filas CSV/TSV (primera fila = cabecera) en objetos { columna: valor }
+function csvToObjects(text, delimiter) {
+  const rows = parseCSV(text, delimiter);
   if (rows.length === 0) return [];
   const header = rows[0].map((h) => h.trim());
   return rows.slice(1).map((r) => {
@@ -65,4 +81,4 @@ function csvToObjects(text) {
   });
 }
 
-module.exports = { parseCSV, csvToObjects };
+module.exports = { parseCSV, csvToObjects, detectDelimiter };

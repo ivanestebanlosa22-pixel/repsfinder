@@ -6,18 +6,20 @@ genera archivos `.html` planos que se suben tal cual a Hostinger.
 
 ## Regenerar el sitio (cuando cambien los datos en la hoja)
 
-**1. Exporta 4 CSV desde la hoja de Google Sheets** `repsfinder`
-(`https://docs.google.com/spreadsheets/d/1YZmhCC4rBmGpv-IoIvjB8oMV6kVCgOpK4-1rDBa0Ha8`).
+**1. Exporta la hoja de Google Sheets** `repsfinder`
+(`https://docs.google.com/spreadsheets/d/1YZmhCC4rBmGpv-IoIvjB8oMV6kVCgOpK4-1rDBa0Ha8`) — CSV o TSV,
+el build detecta el separador automáticamente.
 
-Para cada pestaña: ábrela → **Archivo → Descargar → Valores separados por comas (.csv)** → guarda
-el archivo en `site/data/` con el nombre exacto:
+Para cada pestaña: ábrela → **Archivo → Descargar → CSV o TSV** → guarda el archivo en `site/data/`
+con el nombre exacto:
 
-| Pestaña en Sheets | Archivo |
-|---|---|
-| `MAIN` | `data/main.csv` |
-| `AGENTS` | `data/agents.csv` |
-| gid `2045150387` (formato de enlace por agente) | `data/validar.csv` |
-| gid `229144007` (tiendas top) | `data/top-tiendas.csv` |
+| Pestaña en Sheets | Archivo | ¿Obligatorio? |
+|---|---|---|
+| `MAIN` | `data/main.csv` | Sí |
+| `AGENTS` | `data/agents.csv` | Sí |
+| gid `2045150387` ("POPUP AGENTES", formato de enlace por agente) | `data/validar.csv` | Sí |
+| gid `229144007` (tiendas top) | `data/top-tiendas.csv` | Sí |
+| `AGENTS INDEX` | `data/agents-index.csv` | No — sin ella, la home usa un fallback razonable |
 
 Detalle completo en `data/README.md`.
 

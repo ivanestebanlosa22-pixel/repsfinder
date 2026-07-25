@@ -30,10 +30,20 @@ const CONDITIONAL = {
   acbuy: { display: 'ACBuy', expectedCode: 'UD3WIU' },
 };
 
+// El nombre de este agente se escribe de forma inconsistente entre fuentes reales: "Oopbuy" en
+// AGENTS/AGENTS INDEX, "Oppbuy" en agentLinks.ts (código de la app) y en la tabla de formato de
+// enlace (POPUP_AGENTES/validar.csv). Sin este alias, normalizeName trataría "oopbuy" y "oppbuy"
+// como dos agentes distintos y el segundo no coincidiría con CONFIRMED.oopbuy — se perdería
+// silenciosamente. Confirmado real, no una suposición.
+const NAME_ALIASES = {
+  oppbuy: 'oopbuy',
+};
+
 function normalizeName(name) {
-  return String(name || '')
+  const key = String(name || '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
+  return NAME_ALIASES[key] || key;
 }
 
 // Intenta extraer el código de referido de una URL de agente probando los formatos de parámetro

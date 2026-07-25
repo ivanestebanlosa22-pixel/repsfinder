@@ -9,15 +9,19 @@ const { SITE_URL } = require('./lib/layout');
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 
-// Nota: "AGENTS INDEX" (el widget de agentes de la home en la app) no tiene CSV propio aquí —
-// index.html reutiliza la misma lista ya validada de data/agents.csv para su widget de agentes,
-// en vez de depender de una segunda pestaña con datos de visibilidad potencialmente distintos.
-// Un paso de exportación menos para Iván, cero código muerto.
 const REQUIRED_CSV = {
   main: 'main.csv',
   agents: 'agents.csv',
   validar: 'validar.csv',
   topTiendas: 'top-tiendas.csv',
+};
+
+// AGENTS INDEX es opcional: da la curaduría real de qué agentes se muestran en el widget de la
+// home (distinta de agents.csv — ver lib/pages/index.js). Si no está, index.html se genera igual
+// con un fallback razonable (los primeros agentes validados por rating), así que su ausencia nunca
+// bloquea el build.
+const OPTIONAL_CSV = {
+  agentsIndex: 'agents-index.csv',
 };
 
 function readCsvOrNull(filename) {
@@ -47,6 +51,16 @@ function main() {
     missing.forEach((m) => console.log(`  - ${m}`));
     console.log('\nLas páginas que dependen de ellos NO se generarán en esta pasada — nunca se');
     console.log('genera contenido de relleno en su lugar.\n');
+  }
+
+  for (const [key, filename] of Object.entries(OPTIONAL_CSV)) {
+    const rows = readCsvOrNull(filename);
+    if (rows === null) {
+      console.log(`○ data/${filename} — no encontrado (opcional, se usa un fallback razonable)`);
+    } else {
+      data[key] = rows;
+      console.log(`✓ data/${filename} — ${rows.length} filas leídas`);
+    }
   }
 
   let generated = 0;
@@ -87,7 +101,7 @@ function main() {
   }
 
   if (data.main && data.agents) {
-    write('index.html', require('./lib/pages/index').build(data.main, data.agents), '/index.html');
+    write('index.html', require('./lib/pages/index').build(data.main, data.agents, data.agentsIndex), '/index.html');
   } else {
     console.log('✗ index.html NO generado (falta data/main.csv y/o data/agents.csv)');
     skipped++;

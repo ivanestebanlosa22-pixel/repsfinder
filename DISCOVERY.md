@@ -252,6 +252,40 @@ Hipobuy, y las tiendas reales top-tiendas por categoría). Ver bloqueo y pregunt
 
 ---
 
+## 5bis. Verificación final contra los 5 CSV reales (recibidos de Iván, no un extracto parcial)
+
+Iván exportó y subió los 5 archivos reales (`MAIN`, `AGENTS`, `AGENTS INDEX`, `POPUP AGENTES` = la
+tabla de formato de enlace de la sección 3.4/gid `2045150387`, `TOP_TIENDAS`). Se cargaron en
+`site/data/` y se corrió `node build.js` de verdad — esto ya no es una build de prueba con datos
+sintéticos, es el sitio real. Resultado, agente por agente:
+
+| Agente | AGENTS.csv (register/productLink) | validar.csv (formato de link) | Veredicto final |
+|---|---|---|---|
+| Kakobuy | `register=https://ikako.vip/r/hc9hz`, `productLink=https://ikako.vip/fue5c` | `affcode=hc9hzs` | **Confirmado el bug que reportó Iván**: la hoja real trae literalmente `hc9hz` en `AGENTS.csv`. Publicado igualmente con el código forzado `FINDSES` por instrucción no-negociable; conflicto de 3 valores distintos (`hc9hz`, `fue5c`, `hc9hzs`) registrado en el informe de build. |
+| USFans | `ref=RCGD5Y` ✓ | `ref=RCGD5Y` ✓ | Coincide. Publicado. |
+| Litbuy | `inviteCode=YBMHFG55L` ✓ | `inviteCode=YBMHFG55L` ✓ | Coincide. Publicado. |
+| Superbuy | `partnercode=Ey3NrI` ✓ | `partnercode=Ey3NrI` ✓ | Coincide. Publicado. |
+| Mulebuy | `ref=200642502` ✓ | `ref=200642502` ✓ | Coincide. Publicado. |
+| Oopbuy | `inviteCode=GH40R4J0O` ✓ | `inviteCode=GH40R4J0O` ✓ (fila llamada "Oppbuy", ver nota abajo) | Coincide. Publicado. |
+| Joyagoo | presente en `AGENTS.csv`, `validar.csv` y `agents-index.csv` | — | **Excluido en las 3 pestañas**, tal como exige la regla. |
+| CNFans | no aparece en ninguno de los 5 archivos reales | — | Sin fila que excluir — ya no está en la hoja. Sigue en la lista de exclusión permanente del código por si reaparece. |
+| AllChinaBuy | `partnercode=ELEwZR` ✓ coincide exacto con el valor "visto hoy" | no tiene fila propia en `validar.csv` | **Ahora sí se publica** en `agents.html` (antes estaba condicionado, ahora confirmado). |
+| Hipobuy | **no tiene fila en `AGENTS.csv`** (10 filas reales, Hipobuy no está) | `inviteCode=YZKOGE9NE` ✓ coincide | Se publica en `verify.html` (enlace de compra) pero **no aparece en `agents.html`** por falta de ficha completa en la hoja `AGENTS`. Flag para Iván: añadir fila de Hipobuy en `AGENTS` si se quiere su ficha completa. |
+| ACBuy | `u=UD3WIU&source=WD` ✓ coincide | `u=UD3WIU&source=WD` ✓ coincide | Coincide. Publicado. |
+| CSSBuy | fila completa real en `AGENTS.csv`, código `inviteCode=CHINESE2024` | no tiene fila en `validar.csv` | **Nuevo agente no contemplado en el encargo original.** No está en la tabla de la Sección 2 (ni confirmado, ni excluido, ni condicional) — el build lo excluye por defecto, sin publicar nada sin instrucción explícita. **Flag para Iván: decidir si CSSBuy se añade a la Sección 2 y con qué código.** |
+| SUGARGOO | no aparece en `AGENTS.csv` ni `validar.csv`; en `agents-index.csv` con `mostrar=FALSE` | — | Nunca se publica (ni está en la Sección 2, ni tiene `mostrar=TRUE`). |
+
+**Nota — bug de nomenclatura corregido:** la hoja `AGENTS`/`AGENTS INDEX` escribe el agente como
+"Oopbuy" mientras que `validar.csv` (POPUP AGENTES) y el propio código fuente de la app
+(`agentLinks.ts`) lo escriben "Oppbuy". Sin un alias explícito, el validador los habría tratado como
+dos agentes distintos y "Oppbuy" se habría excluido silenciosamente por no reconocerse. Corregido en
+`site/lib/agents.js` (`NAME_ALIASES`).
+
+**Nota — AGENTS INDEX sí importa:** los datos reales muestran `mostrar=FALSE` para Kakobuy,
+Allchinabuy e Hipobuy en `AGENTS INDEX`, aunque los tres están validados y se publican en
+`agents.html`. El widget de agentes de la home (`index.html`) ahora respeta esa curaduría real —
+esos 3 agentes no aparecen en la home aunque sí en la comparativa completa.
+
 ## 5. Verificación de códigos de agente (Sección 2 del encargo) — estado
 
 | Agente | Código no-negociable | App (`agentLinks.ts`, código fuente) | Hoja (confirmado) | Veredicto |
@@ -290,18 +324,19 @@ Iván confirmó y resolvió el bloqueo de la sección 7: el build **no depender�
 momento**. Iván exportará manualmente cada pestaña relevante desde Google Sheets (Archivo →
 Descargar → Valores separados por comas) y colocará los CSV en `data/`:
 
-| Archivo | Pestaña / gid de origen | Usada por |
-|---|---|---|
-| `data/main.csv` | Sheet `MAIN` | Home (productos destacados) y ejemplos en Verify |
-| `data/agents.csv` | Sheet `AGENTS` | Página de Agentes (comparativa completa) **y** widget de agentes de la Home |
-| `data/validar.csv` | gid `2045150387` (tabla de formato de enlace, 5 columnas) | Página de Validar (construcción de enlaces por agente) |
-| `data/top-tiendas.csv` | gid `229144007` | Página de Top Tiendas |
+| Archivo | Pestaña / gid de origen | Usada por | ¿Obligatorio? |
+|---|---|---|---|
+| `data/main.csv` | Sheet `MAIN` | Home (productos destacados) y ejemplos en Verify | Sí |
+| `data/agents.csv` | Sheet `AGENTS` | Página de Agentes (comparativa completa) **y** base del widget de agentes de la Home | Sí |
+| `data/validar.csv` | gid `2045150387` ("POPUP AGENTES", tabla de formato de enlace, 5 columnas) | Página de Validar (construcción de enlaces por agente) | Sí |
+| `data/top-tiendas.csv` | gid `229144007` | Página de Top Tiendas | Sí |
+| `data/agents-index.csv` | Sheet `AGENTS INDEX` | Curaduría de qué agentes se muestran en el widget de la Home | No (fallback: top N por rating) |
 
-**Decisión de implementación (no una pestaña adicional):** en vez de exportar también
-`AGENTS INDEX`, `index.html` reutiliza la misma lista de `data/agents.csv` ya validada contra la
-Sección 2 para su widget de agentes — un paso de exportación menos para Iván, sin pestaña sin usar.
-Si Iván prefiere que la home respete la curaduría independiente de `AGENTS INDEX` (por ejemplo,
-agentes ocultos solo en home como se vio con `SUGARGOO`), avisar para añadir ese CSV.
+**Actualización tras recibir los CSV reales de Iván:** `AGENTS INDEX` sí aporta señal real y
+distinta de `AGENTS` — por ejemplo, en los datos reales `Kakobuy`, `Allchinabuy` e `Hipobuy` están
+validados y se publican en `agents.html`, pero `AGENTS INDEX` trae `mostrar=FALSE` para ellos, así
+que la home real no los muestra en su widget aunque sí estén disponibles en la comparativa completa.
+`index.html` ahora respeta esa curaduría cuando el CSV está presente (ver `lib/pages/index.js`).
 
 **Nota de interpretación, documentada por transparencia:** `validar.tsx` en la app usa en realidad
 *dos* sheets distintos — su propio feed de productos re-categorizado (`gid=985196103`, columnas
